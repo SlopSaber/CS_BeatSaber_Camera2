@@ -17,16 +17,16 @@ namespace Camera2.HarmonyPatches {
 
 		[HarmonyTargetMethods]
 		static IEnumerable<MethodBase> TargetMethods() {
-			foreach(var m in AccessTools.GetDeclaredMethods(typeof(StandardLevelScenesTransitionSetupDataSO)))
-				if(m.Name == nameof(StandardLevelScenesTransitionSetupDataSO.Init))
+            foreach(var m in AccessTools.GetDeclaredMethods(typeof(StandardLevelScenesTransitionSetupData)))
+                if(m.Name == nameof(StandardLevelScenesTransitionSetupData.Init))
 					yield return m;
 
-			foreach(var m in AccessTools.GetDeclaredMethods(typeof(MissionLevelScenesTransitionSetupDataSO)))
-				if(m.Name == nameof(MissionLevelScenesTransitionSetupDataSO.Init))
+            foreach(var m in AccessTools.GetDeclaredMethods(typeof(MissionLevelScenesTransitionSetupData)))
+                if(m.Name == nameof(MissionLevelScenesTransitionSetupData.Init))
 					yield return m;
 
 			yield return AccessTools.FirstMethod(
-				typeof(MultiplayerLevelScenesTransitionSetupDataSO),
+                typeof(MultiplayerLevelScenesTransitionSetupData),
 				x => x.Name == "Init"
 			);
 		}
@@ -40,7 +40,7 @@ namespace Camera2.HarmonyPatches {
 			HookLeveldata.gameplayModifiers = gameplayModifiers;
 
 			isModdedMap = ModMapUtil.IsModdedMap(beatmapKey);
-			is360Level = beatmapKey.beatmapCharacteristic.containsRotationEvents;
+            is360Level = beatmapKey.characteristic == BeatmapCharacteristic.Degree360;
 			isWallMap = ModMapUtil.IsProbablyWallmap(beatmapKey);
 		}
 

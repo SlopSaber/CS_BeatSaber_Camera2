@@ -31,10 +31,4 @@ namespace Camera2.HarmonyPatches {
 		}
 	}
 
-	[HarmonyPatch(typeof(MainEffectController), "OnPreRender")]
-	static class BloomRendererInstantiateFix4 {
-		static void Postfix(ImageEffectController ____imageEffectController) {
-			____imageEffectController.enabled = true;
-		}
-	}
 }
