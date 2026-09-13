@@ -45,10 +45,15 @@ namespace Camera2.HarmonyPatches {
 		//TODO: remove next version
 		public static readonly bool isSiraSettingLocalPostionYes = SiraUtilSimpleCameraController != null && SiraUtilSimpleCameraController.HVersion > new Hive.Versioning.Version("3.0.5");
 
-		static bool Prepare() => SiraUtilSimpleCameraController != null;
+		static bool Prepare() => TargetMethod() != null;
 
 		static MethodBase TargetMethod() {
+			if(SiraUtilSimpleCameraController == null)
+				return null;
+
 			var x = SiraUtilSimpleCameraController.Assembly.GetType("SiraUtil.Tools.FPFC.SimpleCameraController");
+			if(x == null)
+				return null;
 
 			var y = x?.GetMethod("Update", BindingFlags.NonPublic | BindingFlags.Instance);
 			FIELD_SimpleCameraController_AllowInput = x?.GetProperty("AllowInput");
