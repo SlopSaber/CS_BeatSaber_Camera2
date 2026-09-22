@@ -159,7 +159,6 @@ namespace Camera2.Behaviours {
 
 		private Vector3 lastMousePos;
 
-		private bool didShowHint = false;
 
 		void Update() {
 			if(Input.anyKeyDown) { //Some custom scenes to do funny stuff with
