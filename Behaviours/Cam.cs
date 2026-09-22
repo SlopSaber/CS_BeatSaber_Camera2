@@ -10,6 +10,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Camera2.Behaviours {
 
@@ -102,8 +104,11 @@ namespace Camera2.Behaviours {
 		}
 
 		internal void UpdateDepthTextureActive() {
-			if(UCamera != null)
+			if(UCamera != null) {
 				UCamera.depthTextureMode = HookSettingsManager.useDepthTexture || settings?.PostProcessing.forceDepthTexture == true ? DepthTextureMode.Depth : DepthTextureMode.None;
+				if(UCamera.TryGetComponent<UniversalAdditionalCameraData>(out var cameraData))
+					cameraData.requiresDepthTexture = UCamera.depthTextureMode != DepthTextureMode.None;
+			}
 		}
 
 		static readonly HashSet<string> CameraBehavioursToDestroy = new HashSet<string>() { 
@@ -142,6 +147,12 @@ namespace Camera2.Behaviours {
 			UCamera.tag = "Untagged";
 			UCamera.clearFlags = CameraClearFlags.SolidColor;
 			UCamera.stereoTargetEye = StereoTargetEyeMask.None;
+			if(GraphicsSettings.currentRenderPipeline != null) {
+				var cameraData = UCamera.GetUniversalAdditionalCameraData();
+				cameraData.renderType = CameraRenderType.Base;
+				cameraData.allowXRRendering = false;
+				cameraData.cameraStack?.Clear();
+			}
 			UpdateDepthTextureActive();
 
 			transformchain = new TransformChain(transform, UCamera.transform);
@@ -228,8 +239,15 @@ namespace Camera2.Behaviours {
 			transformchain.Calculate();
 			UCamera.enabled = true;
 
-			if(forceRender)
-				UCamera.Render();
+			if(forceRender) {
+				if(GraphicsSettings.currentRenderPipeline != null) {
+					var request = new UniversalRenderPipeline.SingleCameraRequest { destination = renderTexture };
+					if(RenderPipeline.SupportsRenderRequest(UCamera, request))
+						RenderPipeline.SubmitRenderRequest(UCamera, request);
+				} else {
+					UCamera.Render();
+				}
+			}
 		}
 
 		internal void PostprocessCompleted() {

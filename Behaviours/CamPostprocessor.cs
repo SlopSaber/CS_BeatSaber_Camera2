@@ -45,8 +45,33 @@ namespace Camera2.Behaviours {
 			this.cam = cam;
 		}
 
+		void OnEnable() {
+			RenderPipelineManager.endCameraRendering += OnEndCameraRendering;
+		}
+
 		void OnDisable() {
-			
+			RenderPipelineManager.endCameraRendering -= OnEndCameraRendering;
+		}
+
+		private void OnEndCameraRendering(ScriptableRenderContext context, Camera camera) {
+			if(GraphicsSettings.currentRenderPipeline == null || cam == null || camera != cam.UCamera || !cam.renderTexture)
+				return;
+
+			// URP does not invoke OnRenderImage. Process the resolved camera target,
+			// keeping a separate source so no blit reads and writes the same texture.
+			var descriptor = cam.renderTexture.descriptor;
+			descriptor.depthBufferBits = 0;
+			descriptor.msaaSamples = 1;
+			descriptor.bindMS = false;
+			var source = RenderTexture.GetTemporary(descriptor);
+			var previousTarget = RenderTexture.active;
+			try {
+				Graphics.Blit(cam.renderTexture, source);
+				OnRenderImage(source, cam.renderTexture);
+			} finally {
+				RenderTexture.active = previousTarget;
+				RenderTexture.ReleaseTemporary(source);
+			}
 		}
 
 		void OnRenderImage(RenderTexture _src, RenderTexture dest) {
