@@ -122,7 +122,18 @@ namespace Camera2.Behaviours {
 			this.name = name;
 			previewImage = presentor;
 
-			var camClone = Instantiate(SceneUtil.GetMainCameraButReally(), Vector3.zero, Quaternion.identity, transform);
+			// Clone under an inactive parent so stripped components (including LIV)
+			// cannot run Awake/OnEnable against an unconfigured camera.
+			var stagingRoot = new GameObject("Camera2 inactive clone");
+			stagingRoot.SetActive(false);
+			GameObject camClone;
+			try {
+				camClone = Instantiate(SceneUtil.GetMainCameraButReally(), Vector3.zero, Quaternion.identity, stagingRoot.transform);
+				camClone.SetActive(false);
+				camClone.transform.SetParent(transform, true);
+			} finally {
+				Destroy(stagingRoot);
+			}
 			camClone.name = "Cam";
 
 			UCamera = camClone.GetComponent<Camera>();
@@ -137,8 +148,8 @@ namespace Camera2.Behaviours {
 			transformer = transformchain.AddOrGet("Position", TransformerOrders.PositionOffset, false);
 
 
-			foreach(Transform child in camClone.transform)
-				Destroy(child.gameObject);
+			foreach(var child in camClone.transform.Cast<Transform>().ToArray())
+				DestroyImmediate(child.gameObject);
 
 			foreach(var component in camClone.GetComponents<Behaviour>())
 				if(CameraBehavioursToDestroy.Contains(component.GetType().Name)) DestroyImmediate(component);
@@ -170,6 +181,7 @@ namespace Camera2.Behaviours {
 			};
 
 			camClone.AddComponent<CamPostProcessor>().Init(this);
+			camClone.SetActive(true);
 		}
 
 		private IMHandler MakeMiddleware<T>() where T : CamMiddleware, IMHandler {
