@@ -4,6 +4,8 @@ using Camera2.Utils;
 using System;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 namespace Camera2.Behaviours {
@@ -83,13 +85,77 @@ namespace Camera2.Behaviours {
 
 	class CamerasViewport : MonoBehaviour {
 		private static Canvas canvas;
+		private Camera desktopCamera;
 
 		public void Awake() {
 			DontDestroyOnLoad(gameObject);
 
 			canvas = gameObject.AddComponent<Canvas>();
-			// I know this logs a stupid warning because VR is active, no way to fix that it seems.
 			canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+			if(GraphicsSettings.currentRenderPipeline == null)
+				return;
+
+			// URP draws overlay canvases into the last base camera's target, which
+			// can be an XR eye. Give the desktop its own final, non-XR camera.
+			canvas.enabled = false;
+			var desktopObject = new GameObject("Camera2 Desktop Output");
+			desktopObject.SetActive(false);
+			desktopObject.transform.SetParent(transform, false);
+			desktopCamera = desktopObject.AddComponent<Camera>();
+			desktopCamera.depth = float.MaxValue;
+			desktopCamera.cullingMask = 0;
+			desktopCamera.clearFlags = CameraClearFlags.SolidColor;
+			desktopCamera.backgroundColor = Color.black;
+			desktopCamera.allowHDR = false;
+			desktopCamera.allowMSAA = false;
+			desktopCamera.targetDisplay = canvas.targetDisplay;
+			var cameraData = desktopCamera.GetUniversalAdditionalCameraData();
+			cameraData.renderType = CameraRenderType.Base;
+			cameraData.allowXRRendering = false;
+			cameraData.renderPostProcessing = false;
+			cameraData.renderShadows = false;
+			cameraData.requiresColorTexture = false;
+			cameraData.requiresDepthTexture = false;
+			desktopObject.SetActive(true);
+		}
+
+		private void OnEnable() {
+			if(!desktopCamera)
+				return;
+
+			desktopCamera.enabled = true;
+			RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
+			RenderPipelineManager.endCameraRendering += OnEndCameraRendering;
+		}
+
+		private void OnDisable() {
+			RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
+			RenderPipelineManager.endCameraRendering -= OnEndCameraRendering;
+			if(desktopCamera) {
+				desktopCamera.enabled = false;
+				canvas.enabled = false;
+			}
+		}
+
+		private void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera) {
+			// Also exclude the desktop image from HDR offscreen UI passes and
+			// explicit render requests, which do not share the normal camera order.
+			canvas.enabled = camera == desktopCamera;
+			if(canvas.enabled)
+				Canvas.ForceUpdateCanvases();
+		}
+
+		private void OnEndCameraRendering(ScriptableRenderContext context, Camera camera) {
+			if(camera == desktopCamera)
+				canvas.enabled = false;
+		}
+
+		internal static void ClearDesktop() {
+			// The URP desktop camera clears its own target each frame. An immediate
+			// GL.Clear here can instead clear whichever XR target was left bound.
+			if(GraphicsSettings.currentRenderPipeline == null)
+				GL.Clear(true, true, Color.black);
 		}
 
 		public CameraDesktopView AddNewView() {
@@ -248,7 +314,7 @@ namespace Camera2.Behaviours {
 					);
 				}
 
-				GL.Clear(true, true, Color.black);
+				ClearDesktop();
 				if(finished)
 					currentAction = CamAction.None;
 			}

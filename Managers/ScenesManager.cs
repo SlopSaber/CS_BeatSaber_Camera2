@@ -1,5 +1,6 @@
 ﻿using Camera2.Configuration;
 using Camera2.HarmonyPatches;
+using Camera2.Behaviours;
 using Camera2.SDK;
 using Camera2.Utils;
 using System.Collections;
@@ -147,7 +148,7 @@ namespace Camera2.Managers {
 				cam.Value.gameObject.SetActive(camShouldBeActive);
 			}
 
-			GL.Clear(true, true, Color.black);
+			CamerasViewport.ClearDesktop();
 
 			GlobalFPSCap.ApplyFPSCap();
 		}
