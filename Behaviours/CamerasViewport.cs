@@ -84,6 +84,7 @@ namespace Camera2.Behaviours {
 	}
 
 	class CamerasViewport : MonoBehaviour {
+		private const int desktopLayer = 31;
 		private static Canvas canvas;
 		private Camera desktopCamera;
 
@@ -91,20 +92,20 @@ namespace Camera2.Behaviours {
 			DontDestroyOnLoad(gameObject);
 
 			canvas = gameObject.AddComponent<Canvas>();
-			canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
 			if(GraphicsSettings.currentRenderPipeline == null)
 				return;
 
-			// URP draws overlay canvases into the last base camera's target, which
-			// can be an XR eye. Give the desktop its own final, non-XR camera.
-			canvas.enabled = false;
+			// A camera-space canvas is rendered only by the desktop camera.
+			gameObject.layer = desktopLayer;
 			var desktopObject = new GameObject("Camera2 Desktop Output");
 			desktopObject.SetActive(false);
 			desktopObject.transform.SetParent(transform, false);
 			desktopCamera = desktopObject.AddComponent<Camera>();
 			desktopCamera.depth = float.MaxValue;
-			desktopCamera.cullingMask = 0;
+			desktopCamera.cullingMask = 1 << desktopLayer;
+			desktopCamera.nearClipPlane = 0.01f;
+			desktopCamera.farClipPlane = 2f;
 			desktopCamera.clearFlags = CameraClearFlags.SolidColor;
 			desktopCamera.backgroundColor = Color.black;
 			desktopCamera.allowHDR = false;
@@ -117,38 +118,20 @@ namespace Camera2.Behaviours {
 			cameraData.renderShadows = false;
 			cameraData.requiresColorTexture = false;
 			cameraData.requiresDepthTexture = false;
+			canvas.renderMode = RenderMode.ScreenSpaceCamera;
+			canvas.worldCamera = desktopCamera;
+			canvas.planeDistance = 1f;
 			desktopObject.SetActive(true);
 		}
 
 		private void OnEnable() {
-			if(!desktopCamera)
-				return;
-
-			desktopCamera.enabled = true;
-			RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
-			RenderPipelineManager.endCameraRendering += OnEndCameraRendering;
+			if(desktopCamera)
+				desktopCamera.enabled = true;
 		}
 
 		private void OnDisable() {
-			RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
-			RenderPipelineManager.endCameraRendering -= OnEndCameraRendering;
-			if(desktopCamera) {
+			if(desktopCamera)
 				desktopCamera.enabled = false;
-				canvas.enabled = false;
-			}
-		}
-
-		private void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera) {
-			// Also exclude the desktop image from HDR offscreen UI passes and
-			// explicit render requests, which do not share the normal camera order.
-			canvas.enabled = camera == desktopCamera;
-			if(canvas.enabled)
-				Canvas.ForceUpdateCanvases();
-		}
-
-		private void OnEndCameraRendering(ScriptableRenderContext context, Camera camera) {
-			if(camera == desktopCamera)
-				canvas.enabled = false;
 		}
 
 		internal static void ClearDesktop() {
@@ -160,6 +143,8 @@ namespace Camera2.Behaviours {
 
 		public CameraDesktopView AddNewView() {
 			var img = new GameObject().AddComponent<CameraDesktopView>();
+			if(desktopCamera)
+				img.gameObject.layer = desktopLayer;
 
 			img.transform.SetParent(gameObject.transform, true); //.parent = gameObject.transform;
 
