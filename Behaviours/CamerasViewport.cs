@@ -87,9 +87,13 @@ namespace Camera2.Behaviours {
 		private const int desktopLayer = 31;
 		private static Canvas canvas;
 		private Camera desktopCamera;
+		private float diagnosticsStartedAt;
+		private bool loggedCameraRender;
+		private bool loggedCanvasState;
 
 		public void Awake() {
 			DontDestroyOnLoad(gameObject);
+			diagnosticsStartedAt = Time.realtimeSinceStartup;
 
 			canvas = gameObject.AddComponent<Canvas>();
 
@@ -107,7 +111,8 @@ namespace Camera2.Behaviours {
 			desktopCamera.nearClipPlane = 0.01f;
 			desktopCamera.farClipPlane = 2f;
 			desktopCamera.clearFlags = CameraClearFlags.SolidColor;
-			desktopCamera.backgroundColor = Color.black;
+			// Temporary marker: distinguishes a missing camera pass from missing UI.
+			desktopCamera.backgroundColor = Color.magenta;
 			desktopCamera.allowHDR = false;
 			desktopCamera.allowMSAA = false;
 			desktopCamera.targetDisplay = canvas.targetDisplay;
@@ -125,13 +130,33 @@ namespace Camera2.Behaviours {
 		}
 
 		private void OnEnable() {
-			if(desktopCamera)
+			if(desktopCamera) {
 				desktopCamera.enabled = true;
+				RenderPipelineManager.beginCameraRendering += LogDesktopCameraRender;
+			}
 		}
 
 		private void OnDisable() {
+			RenderPipelineManager.beginCameraRendering -= LogDesktopCameraRender;
 			if(desktopCamera)
 				desktopCamera.enabled = false;
+		}
+
+		private void LogDesktopCameraRender(ScriptableRenderContext context, Camera camera) {
+			if(loggedCameraRender || camera != desktopCamera)
+				return;
+
+			loggedCameraRender = true;
+			Plugin.Log.Notice($"Desktop render pass: pixelSize={camera.pixelWidth}x{camera.pixelHeight}, targetTexture={camera.targetTexture}, display={camera.targetDisplay}");
+		}
+
+		private void LogCanvasState() {
+			if(loggedCanvasState || Time.realtimeSinceStartup - diagnosticsStartedAt < 5f)
+				return;
+
+			loggedCanvasState = true;
+			var views = GetComponentsInChildren<CameraDesktopView>(true);
+			Plugin.Log.Notice($"Desktop canvas: screen={Screen.width}x{Screen.height}, canvasActive={canvas.isActiveAndEnabled}, cameraActive={desktopCamera && desktopCamera.isActiveAndEnabled}, views={views.Length}, textures={string.Join(",", views.Select(view => $"{view.name}:{view.texture?.width}x{view.texture?.height}:{view.gameObject.activeInHierarchy}"))}");
 		}
 
 		internal static void ClearDesktop() {
@@ -212,6 +237,7 @@ namespace Camera2.Behaviours {
 
 
 		void Update() {
+			LogCanvasState();
 			if(Input.anyKeyDown) { //Some custom scenes to do funny stuff with
 				if(Input.GetKeyDown(KeyCode.F1)) {
 					if(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift)) {
