@@ -112,9 +112,10 @@ namespace Camera2.Behaviours {
 			desktopCamera.farClipPlane = 2f;
 			desktopCamera.clearFlags = CameraClearFlags.SolidColor;
 			// Temporary marker: distinguishes a missing camera pass from missing UI.
-			desktopCamera.backgroundColor = Color.magenta;
+			desktopCamera.backgroundColor = Color.green;
 			desktopCamera.allowHDR = false;
 			desktopCamera.allowMSAA = false;
+			desktopCamera.stereoTargetEye = StereoTargetEyeMask.None;
 			desktopCamera.targetDisplay = canvas.targetDisplay;
 			var cameraData = desktopCamera.GetUniversalAdditionalCameraData();
 			cameraData.renderType = CameraRenderType.Base;
@@ -156,7 +157,8 @@ namespace Camera2.Behaviours {
 
 			loggedCanvasState = true;
 			var views = GetComponentsInChildren<CameraDesktopView>(true);
-			Plugin.Log.Notice($"Desktop canvas: screen={Screen.width}x{Screen.height}, canvasActive={canvas.isActiveAndEnabled}, cameraActive={desktopCamera && desktopCamera.isActiveAndEnabled}, views={views.Length}, textures={string.Join(",", views.Select(view => $"{view.name}:{view.texture?.width}x{view.texture?.height}:{view.gameObject.activeInHierarchy}"))}");
+			Canvas.ForceUpdateCanvases();
+			Plugin.Log.Notice($"Desktop canvas: screen={Screen.width}x{Screen.height}, canvasActive={canvas.isActiveAndEnabled}, mode={canvas.renderMode}, cameraActive={desktopCamera && desktopCamera.isActiveAndEnabled}, views={views.Length}, textures={string.Join(",", views.Select(view => $"{view.name}:{view.texture?.width}x{view.texture?.height}:active={view.gameObject.activeInHierarchy}:rect={view.rekt.rect}:shader={view.materialForRendering?.shader?.name}:supported={view.materialForRendering?.shader?.isSupported}"))}");
 		}
 
 		internal static void ClearDesktop() {
