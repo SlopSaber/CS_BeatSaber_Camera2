@@ -4,8 +4,6 @@ using Camera2.Utils;
 using System;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 namespace Camera2.Behaviours {
@@ -84,104 +82,18 @@ namespace Camera2.Behaviours {
 	}
 
 	class CamerasViewport : MonoBehaviour {
-		private const int desktopLayer = 5;
 		private static Canvas canvas;
-		private Camera desktopCamera;
-		private float diagnosticsStartedAt;
-		private bool loggedCameraRender;
-		private bool loggedCanvasState;
 
 		public void Awake() {
 			DontDestroyOnLoad(gameObject);
-			diagnosticsStartedAt = Time.realtimeSinceStartup;
 
 			canvas = gameObject.AddComponent<Canvas>();
-
-			if(GraphicsSettings.currentRenderPipeline == null)
-				return;
-
-			// World-space UI uses the camera's normal transparent render pass.
-			gameObject.layer = desktopLayer;
-			var desktopObject = new GameObject("Camera2 Desktop Output");
-			desktopObject.SetActive(false);
-			desktopObject.transform.SetParent(transform, false);
-			desktopCamera = desktopObject.AddComponent<Camera>();
-			desktopCamera.depth = float.MaxValue;
-			desktopCamera.cullingMask = 1 << desktopLayer;
-			desktopCamera.nearClipPlane = 0.01f;
-			desktopCamera.farClipPlane = 2f;
-			desktopCamera.orthographic = true;
-			desktopCamera.clearFlags = CameraClearFlags.SolidColor;
-			desktopCamera.backgroundColor = Color.black;
-			desktopCamera.allowHDR = false;
-			desktopCamera.allowMSAA = false;
-			desktopCamera.stereoTargetEye = StereoTargetEyeMask.None;
-			desktopCamera.targetDisplay = canvas.targetDisplay;
-			var cameraData = desktopCamera.GetUniversalAdditionalCameraData();
-			cameraData.renderType = CameraRenderType.Base;
-			cameraData.allowXRRendering = false;
-			cameraData.renderPostProcessing = false;
-			cameraData.renderShadows = false;
-			cameraData.requiresColorTexture = false;
-			cameraData.requiresDepthTexture = false;
-			canvas.renderMode = RenderMode.WorldSpace;
-			canvas.worldCamera = desktopCamera;
-			canvas.transform.localPosition = Vector3.forward;
-			canvas.transform.localRotation = Quaternion.identity;
-			UpdateDesktopCanvasSize();
-			desktopObject.SetActive(true);
-		}
-
-		private void UpdateDesktopCanvasSize() {
-			if(!desktopCamera)
-				return;
-
-			desktopCamera.orthographicSize = Screen.height / 2f;
-			((RectTransform)canvas.transform).sizeDelta = new Vector2(Screen.width, Screen.height);
-		}
-
-		private void OnEnable() {
-			if(desktopCamera) {
-				desktopCamera.enabled = true;
-				RenderPipelineManager.beginCameraRendering += LogDesktopCameraRender;
-			}
-		}
-
-		private void OnDisable() {
-			RenderPipelineManager.beginCameraRendering -= LogDesktopCameraRender;
-			if(desktopCamera)
-				desktopCamera.enabled = false;
-		}
-
-		private void LogDesktopCameraRender(ScriptableRenderContext context, Camera camera) {
-			if(loggedCameraRender || camera != desktopCamera)
-				return;
-
-			loggedCameraRender = true;
-			Plugin.Log.Notice($"Desktop render pass: pixelSize={camera.pixelWidth}x{camera.pixelHeight}, targetTexture={camera.targetTexture}, display={camera.targetDisplay}");
-		}
-
-		private void LogCanvasState() {
-			if(loggedCanvasState || Time.realtimeSinceStartup - diagnosticsStartedAt < 5f)
-				return;
-
-			loggedCanvasState = true;
-			var views = GetComponentsInChildren<CameraDesktopView>(true);
-			Canvas.ForceUpdateCanvases();
-			Plugin.Log.Notice($"Desktop canvas: screen={Screen.width}x{Screen.height}, canvasActive={canvas.isActiveAndEnabled}, mode={canvas.renderMode}, cameraActive={desktopCamera && desktopCamera.isActiveAndEnabled}, views={views.Length}, textures={string.Join(",", views.Select(view => $"{view.name}:{view.texture?.width}x{view.texture?.height}:active={view.gameObject.activeInHierarchy}:rect={view.rekt.rect}:shader={view.materialForRendering?.shader?.name}:supported={view.materialForRendering?.shader?.isSupported}"))}");
-		}
-
-		internal static void ClearDesktop() {
-			// The URP desktop camera clears its own target each frame. An immediate
-			// GL.Clear here can instead clear whichever XR target was left bound.
-			if(GraphicsSettings.currentRenderPipeline == null)
-				GL.Clear(true, true, Color.black);
+			// I know this logs a stupid warning because VR is active, no way to fix that it seems.
+			canvas.renderMode = RenderMode.ScreenSpaceOverlay;
 		}
 
 		public CameraDesktopView AddNewView() {
 			var img = new GameObject().AddComponent<CameraDesktopView>();
-			if(desktopCamera)
-				img.gameObject.layer = desktopLayer;
 
 			img.transform.SetParent(gameObject.transform, true); //.parent = gameObject.transform;
 
@@ -249,9 +161,6 @@ namespace Camera2.Behaviours {
 
 
 		void Update() {
-			LogCanvasState();
-			if(desktopCamera && (((RectTransform)canvas.transform).rect.width != Screen.width || ((RectTransform)canvas.transform).rect.height != Screen.height))
-				UpdateDesktopCanvasSize();
 			if(Input.anyKeyDown) { //Some custom scenes to do funny stuff with
 				if(Input.GetKeyDown(KeyCode.F1)) {
 					if(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift)) {
@@ -339,7 +248,7 @@ namespace Camera2.Behaviours {
 					);
 				}
 
-				ClearDesktop();
+				GL.Clear(true, true, Color.black);
 				if(finished)
 					currentAction = CamAction.None;
 			}
