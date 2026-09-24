@@ -147,7 +147,8 @@ namespace Camera2.Managers {
 				cam.Value.gameObject.SetActive(camShouldBeActive);
 			}
 
-			GL.Clear(true, true, Color.black);
+			if(UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline == null)
+				GL.Clear(true, true, Color.black);
 
 			GlobalFPSCap.ApplyFPSCap();
 		}

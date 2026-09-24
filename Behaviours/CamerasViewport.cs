@@ -248,7 +248,8 @@ namespace Camera2.Behaviours {
 					);
 				}
 
-				GL.Clear(true, true, Color.black);
+				if(UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline == null)
+					GL.Clear(true, true, Color.black);
 				if(finished)
 					currentAction = CamAction.None;
 			}

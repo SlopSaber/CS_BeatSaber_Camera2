@@ -57,6 +57,15 @@ namespace Camera2.Behaviours {
 			if(GraphicsSettings.currentRenderPipeline == null || cam == null || camera != cam.UCamera || !cam.renderTexture)
 				return;
 
+			// The default camera has no effects to apply. Avoid a pair of immediate
+			// blits while URP is rendering the XR frame.
+			if(settings.PostProcessing.shaders.Length == 0 &&
+				settings.PostProcessing.transparencyThreshold == 0f &&
+				!cam.isCurrentlySelectedInSettings) {
+				cam.PostprocessCompleted();
+				return;
+			}
+
 			// URP does not invoke OnRenderImage. Process the resolved camera target,
 			// keeping a separate source so no blit reads and writes the same texture.
 			var descriptor = cam.renderTexture.descriptor;
