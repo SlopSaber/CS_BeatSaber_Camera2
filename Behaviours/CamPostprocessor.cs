@@ -40,6 +40,7 @@ namespace Camera2.Behaviours {
 
 		protected Cam2 cam;
 		protected CameraSettings settings => cam.settings;
+		private bool pendingUrpRender;
 
 		public void Init(Cam2 cam) {
 			this.cam = cam;
@@ -47,27 +48,31 @@ namespace Camera2.Behaviours {
 
 		void OnEnable() {
 			RenderPipelineManager.endCameraRendering += OnEndCameraRendering;
+			RenderPipelineManager.endContextRendering += OnEndContextRendering;
 		}
 
 		void OnDisable() {
 			RenderPipelineManager.endCameraRendering -= OnEndCameraRendering;
+			RenderPipelineManager.endContextRendering -= OnEndContextRendering;
+			pendingUrpRender = false;
 		}
 
 		private void OnEndCameraRendering(ScriptableRenderContext context, Camera camera) {
 			if(GraphicsSettings.currentRenderPipeline == null || cam == null || camera != cam.UCamera || !cam.renderTexture)
 				return;
 
-			// The default camera has no effects to apply. Avoid a pair of immediate
-			// blits while URP is rendering the XR frame.
-			if(settings.PostProcessing.shaders.Length == 0 &&
-				settings.PostProcessing.transparencyThreshold == 0f &&
-				!cam.isCurrentlySelectedInSettings) {
-				cam.PostprocessCompleted();
-				return;
-			}
+			pendingUrpRender = true;
+		}
 
-			// URP does not invoke OnRenderImage. Process the resolved camera target,
-			// keeping a separate source so no blit reads and writes the same texture.
+		private void OnEndContextRendering(ScriptableRenderContext context, List<Camera> cameras) {
+			if(!pendingUrpRender)
+				return;
+			pendingUrpRender = false;
+			if(cam == null || !cam.renderTexture)
+				return;
+
+			// Finish the XR camera context before blitting the desktop view. The
+			// luminance shader also makes default views opaque when threshold is zero.
 			var descriptor = cam.renderTexture.descriptor;
 			descriptor.depthBufferBits = 0;
 			descriptor.msaaSamples = 1;
