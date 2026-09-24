@@ -84,7 +84,7 @@ namespace Camera2.Behaviours {
 	}
 
 	class CamerasViewport : MonoBehaviour {
-		private const int desktopLayer = 31;
+		private const int desktopLayer = 5;
 		private static Canvas canvas;
 		private Camera desktopCamera;
 		private float diagnosticsStartedAt;
