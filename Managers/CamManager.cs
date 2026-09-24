@@ -32,8 +32,6 @@ namespace Camera2.Managers {
 
 			ScenesManager.settings.Load();
 
-			XRSettings.gameViewRenderMode = GameViewRenderMode.None;
-
 			new GameObject("Cam2_Positioner", typeof(CamPositioner));
 		}
 
