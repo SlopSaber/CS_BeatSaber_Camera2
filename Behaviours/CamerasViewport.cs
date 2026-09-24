@@ -100,7 +100,7 @@ namespace Camera2.Behaviours {
 			if(GraphicsSettings.currentRenderPipeline == null)
 				return;
 
-			// A camera-space canvas is rendered only by the desktop camera.
+			// World-space UI uses the camera's normal transparent render pass.
 			gameObject.layer = desktopLayer;
 			var desktopObject = new GameObject("Camera2 Desktop Output");
 			desktopObject.SetActive(false);
@@ -110,9 +110,9 @@ namespace Camera2.Behaviours {
 			desktopCamera.cullingMask = 1 << desktopLayer;
 			desktopCamera.nearClipPlane = 0.01f;
 			desktopCamera.farClipPlane = 2f;
+			desktopCamera.orthographic = true;
 			desktopCamera.clearFlags = CameraClearFlags.SolidColor;
-			// Temporary marker: distinguishes a missing camera pass from missing UI.
-			desktopCamera.backgroundColor = Color.green;
+			desktopCamera.backgroundColor = Color.black;
 			desktopCamera.allowHDR = false;
 			desktopCamera.allowMSAA = false;
 			desktopCamera.stereoTargetEye = StereoTargetEyeMask.None;
@@ -124,10 +124,20 @@ namespace Camera2.Behaviours {
 			cameraData.renderShadows = false;
 			cameraData.requiresColorTexture = false;
 			cameraData.requiresDepthTexture = false;
-			canvas.renderMode = RenderMode.ScreenSpaceCamera;
+			canvas.renderMode = RenderMode.WorldSpace;
 			canvas.worldCamera = desktopCamera;
-			canvas.planeDistance = 1f;
+			canvas.transform.localPosition = Vector3.forward;
+			canvas.transform.localRotation = Quaternion.identity;
+			UpdateDesktopCanvasSize();
 			desktopObject.SetActive(true);
+		}
+
+		private void UpdateDesktopCanvasSize() {
+			if(!desktopCamera)
+				return;
+
+			desktopCamera.orthographicSize = Screen.height / 2f;
+			((RectTransform)canvas.transform).sizeDelta = new Vector2(Screen.width, Screen.height);
 		}
 
 		private void OnEnable() {
@@ -240,6 +250,8 @@ namespace Camera2.Behaviours {
 
 		void Update() {
 			LogCanvasState();
+			if(desktopCamera && (((RectTransform)canvas.transform).rect.width != Screen.width || ((RectTransform)canvas.transform).rect.height != Screen.height))
+				UpdateDesktopCanvasSize();
 			if(Input.anyKeyDown) { //Some custom scenes to do funny stuff with
 				if(Input.GetKeyDown(KeyCode.F1)) {
 					if(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift)) {
