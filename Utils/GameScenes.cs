@@ -37,6 +37,7 @@ namespace Camera2.Utils {
 			currentScene = newScene;
 			isInSong = newScene.name == "GameCore";
 			isInMenu = !isInSong && ScenesManager.menuSceneNames.Contains(newScene.name);
+			CamManager.customScreen?.SetTransitionCover(newScene.name == "EmptyTransition" || newScene.name == "ShaderWarmup");
 
 			if(oldScene.name == "GameCore") {
 #if DEBUG

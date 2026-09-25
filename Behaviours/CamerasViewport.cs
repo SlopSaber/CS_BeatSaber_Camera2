@@ -83,6 +83,7 @@ namespace Camera2.Behaviours {
 
 	class CamerasViewport : MonoBehaviour {
 		private static Canvas canvas;
+		private Image transitionCover;
 
 		public void Awake() {
 			DontDestroyOnLoad(gameObject);
@@ -90,6 +91,23 @@ namespace Camera2.Behaviours {
 			canvas = gameObject.AddComponent<Canvas>();
 			// I know this logs a stupid warning because VR is active, no way to fix that it seems.
 			canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+			transitionCover = new GameObject("Camera2 Transition Cover", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+			transitionCover.transform.SetParent(canvas.transform, false);
+			var rect = transitionCover.rectTransform;
+			rect.anchorMin = Vector2.zero;
+			rect.anchorMax = Vector2.one;
+			rect.offsetMin = Vector2.zero;
+			rect.offsetMax = Vector2.zero;
+			transitionCover.color = Color.black;
+			transitionCover.raycastTarget = false;
+			transitionCover.gameObject.SetActive(false);
+		}
+
+		public void SetTransitionCover(bool visible) {
+			if(visible)
+				transitionCover.transform.SetAsLastSibling();
+			transitionCover.gameObject.SetActive(visible);
 		}
 
 		public CameraDesktopView AddNewView() {
