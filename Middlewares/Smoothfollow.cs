@@ -117,8 +117,13 @@ namespace Camera2.Middlewares {
 					if(!source.isInReplay || (HookFPFCToggle.isInFPFC && !(source is ReplaySources.WorldSource)))
 						continue;
 
-					currentReplaySource = source;
-					break;
+					// World poses include Noodle player movement; prefer them over legacy local poses.
+					if(source is ReplaySources.WorldSource) {
+						currentReplaySource = source;
+						break;
+					}
+					if(currentReplaySource == null)
+						currentReplaySource = source;
 				}
 			}
 
