@@ -54,7 +54,23 @@ namespace Camera2.Middlewares {
 
 		bool teleportOnNextFrame = false;
 		bool worldReplayPoseLogged = false;
+		bool worldReplayOffsetActive = false;
 		int lastWorldPoseJumpVersion = -1;
+
+		void ApplyReplayOffsetMode(bool worldReplayActive) {
+			if(worldReplayActive) {
+				if(!worldReplayOffsetActive)
+					Plugin.Log.Info($"Using player-relative camera offset for world replay on {cam.name}: {cam.transformer.position}");
+				// A world-space camera offset shifts sideways when the map turns the player.
+				cam.transformer.applyAsAbsolute = false;
+				worldReplayOffsetActive = true;
+			} else if(worldReplayOffsetActive) {
+				settings.ApplyPositionAndRotation();
+				worldReplayOffsetActive = false;
+			}
+		}
+
+		public void OnDisable() => ApplyReplayOffsetMode(false);
 
 		public void OnEnable() {
 			/*
@@ -77,6 +93,7 @@ namespace Camera2.Middlewares {
 
 		new public bool Pre() {
 			if(settings.type == Configuration.CameraType.Positionable) {
+				ApplyReplayOffsetMode(false);
 				if(settings.Smoothfollow.transformer != null) {
 					settings.Smoothfollow.transformer.position = Vector3.zero;
 					settings.Smoothfollow.transformer.rotation = Quaternion.identity;
@@ -97,6 +114,8 @@ namespace Camera2.Middlewares {
 					break;
 				}
 			}
+
+			ApplyReplayOffsetMode(currentReplaySource is ReplaySources.WorldSource);
 
 			if(settings.type == Configuration.CameraType.FirstPerson && HookFPFCToggle.isInFPFC && currentReplaySource == null) {
 				parentToUse = HookFPFCToggle.fpfcTransform;
