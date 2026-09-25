@@ -35,6 +35,8 @@ namespace Camera2.Behaviours {
 
 		internal Transformer transformer;
 		internal TransformChain transformchain;
+		private bool _replayOpaqueTextureOverride;
+		private bool _originalRequiresColorTexture;
 
 		public void Awake() {
 			DontDestroyOnLoad(gameObject);
@@ -230,6 +232,18 @@ namespace Camera2.Behaviours {
 		internal void PrepareMiddlewaredRender(bool forceRender = false) {
 			if(!UCamera || !renderTexture || middlewares == null)
 				return;
+
+			if(UCamera.TryGetComponent<UniversalAdditionalCameraData>(out var cameraData)) {
+				if(ScoresaberUtil.isInReplay && !_replayOpaqueTextureOverride) {
+					_originalRequiresColorTexture = cameraData.requiresColorTexture;
+					cameraData.requiresColorTexture = true;
+					_replayOpaqueTextureOverride = true;
+					Plugin.Log.Info($"Enabled opaque texture for ScoreSaber replay camera {name}; depth={cameraData.requiresDepthTexture}");
+				} else if(!ScoresaberUtil.isInReplay && _replayOpaqueTextureOverride) {
+					cameraData.requiresColorTexture = _originalRequiresColorTexture;
+					_replayOpaqueTextureOverride = false;
+				}
+			}
 
 			foreach(var t in middlewares) {
 				if(!t.Pre() && !forceRender)
