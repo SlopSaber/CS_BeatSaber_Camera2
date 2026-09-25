@@ -41,10 +41,15 @@ namespace Camera2.SDK {
 		public class WorldSource : GenericSource {
 			public Vector3 worldHeadPosition { get; private set; }
 			public Quaternion worldHeadRotation { get; private set; } = Quaternion.identity;
+			public int poseJumpVersion { get; private set; }
+			private bool hasPose;
 
 			public WorldSource(string name) : base(name) { }
 
 			public void UpdateWorld(Vector3 position, Quaternion rotation) {
+				if(!hasPose || (position - worldHeadPosition).sqrMagnitude > 25f || Quaternion.Angle(worldHeadRotation, rotation) > 25f)
+					poseJumpVersion++;
+				hasPose = true;
 				worldHeadPosition = position;
 				worldHeadRotation = rotation;
 			}

@@ -54,6 +54,7 @@ namespace Camera2.Middlewares {
 
 		bool teleportOnNextFrame = false;
 		bool worldReplayPoseLogged = false;
+		int lastWorldPoseJumpVersion = -1;
 
 		public void OnEnable() {
 			/*
@@ -186,6 +187,12 @@ namespace Camera2.Middlewares {
 					E.z = ClampAngle(E.z, l.rot_z_min, l.rot_z_max);
 
 				targetRotation.eulerAngles = E;
+				if(HookFPFCToggle.isInFPFC && currentReplaySource is ReplaySources.WorldSource &&
+					Mathf.Approximately(l.rot_z_min, 0f) && Mathf.Approximately(l.rot_z_max, 0f)) {
+					var forward = targetRotation * Vector3.forward;
+					if(Mathf.Abs(Vector3.Dot(forward.normalized, Vector3.up)) < 0.999f)
+						targetRotation = Quaternion.LookRotation(forward, Vector3.up);
+				}
 			}
 
 			if(!teleportOnNextFrame) {
@@ -201,6 +208,15 @@ namespace Camera2.Middlewares {
 			}
 
 			var theTransform = settings.Smoothfollow.transformer;
+			if(currentReplaySource is ReplaySources.WorldSource activeWorldSource) {
+				if(lastWorldPoseJumpVersion != activeWorldSource.poseJumpVersion) {
+					teleportOnNextFrame = true;
+					lastWorldPoseJumpVersion = activeWorldSource.poseJumpVersion;
+					Plugin.Log.Info($"Snapping world replay pose for {cam.name}: position {targetPosition}, rotation {targetRotation.eulerAngles}");
+				}
+			} else {
+				lastWorldPoseJumpVersion = -1;
+			}
 
 			// If we switched scenes (E.g. left / entered a song) we want to snap to the correct position before smoothing again
 			if(teleportOnNextFrame) {
