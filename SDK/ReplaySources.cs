@@ -41,17 +41,28 @@ namespace Camera2.SDK {
 		public class WorldSource : GenericSource {
 			public Vector3 worldHeadPosition { get; private set; }
 			public Quaternion worldHeadRotation { get; private set; } = Quaternion.identity;
+			public Transform originTransform { get; private set; }
+			public bool hasOriginPose { get; private set; }
 			public int poseJumpVersion { get; private set; }
 			private bool hasPose;
 
 			public WorldSource(string name) : base(name) { }
 
 			public void UpdateWorld(Vector3 position, Quaternion rotation) {
+				hasOriginPose = false;
+				originTransform = null;
 				if(!hasPose || (position - worldHeadPosition).sqrMagnitude > 25f || Quaternion.Angle(worldHeadRotation, rotation) > 25f)
 					poseJumpVersion++;
 				hasPose = true;
 				worldHeadPosition = position;
 				worldHeadRotation = rotation;
+			}
+
+			public void UpdateWorldFromOrigin(Transform originTransform, Vector3 localHeadPosition, Quaternion localHeadRotation) {
+				Update(ref localHeadPosition, ref localHeadRotation);
+				UpdateWorld(originTransform.TransformPoint(localHeadPosition), originTransform.rotation * localHeadRotation);
+				this.originTransform = originTransform;
+				hasOriginPose = true;
 			}
 		}
 

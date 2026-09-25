@@ -56,6 +56,9 @@ namespace Camera2.Middlewares {
 		bool worldReplayPoseLogged = false;
 		bool worldReplayOffsetActive = false;
 		int lastWorldPoseJumpVersion = -1;
+		ReplaySources.WorldSource smoothedReplaySource;
+		Vector3 smoothedReplayHeadPosition;
+		Quaternion smoothedReplayHeadRotation = Quaternion.identity;
 
 		void ApplyReplayOffsetMode(bool worldReplayActive) {
 			if(worldReplayActive) {
@@ -70,7 +73,10 @@ namespace Camera2.Middlewares {
 			}
 		}
 
-		public void OnDisable() => ApplyReplayOffsetMode(false);
+		public void OnDisable() {
+			ApplyReplayOffsetMode(false);
+			smoothedReplaySource = null;
+		}
 
 		public void OnEnable() {
 			/*
@@ -80,6 +86,7 @@ namespace Camera2.Middlewares {
 			 * of smoothing it to the correct position over time
 			 */
 			teleportOnNextFrame = true;
+			smoothedReplaySource = null;
 		}
 
 		float ClampAngle(float angle, float from, float to) {
@@ -116,6 +123,8 @@ namespace Camera2.Middlewares {
 			}
 
 			ApplyReplayOffsetMode(currentReplaySource is ReplaySources.WorldSource);
+			if(!(currentReplaySource is ReplaySources.WorldSource))
+				smoothedReplaySource = null;
 
 			if(settings.type == Configuration.CameraType.FirstPerson && HookFPFCToggle.isInFPFC && currentReplaySource == null) {
 				parentToUse = HookFPFCToggle.fpfcTransform;
@@ -173,8 +182,25 @@ namespace Camera2.Middlewares {
 					Plugin.Log.Info($"Using world replay pose from {worldSource.name}");
 					worldReplayPoseLogged = true;
 				}
-				targetPosition = worldSource.worldHeadPosition;
-				targetRotation = worldSource.worldHeadRotation;
+				if(worldSource.hasOriginPose && worldSource.originTransform != null) {
+					if(smoothedReplaySource != worldSource || teleportOnNextFrame || lastScene != SceneUtil.currentScene ||
+						lastWorldPoseJumpVersion != worldSource.poseJumpVersion) {
+						smoothedReplayHeadPosition = worldSource.localHeadPosition;
+						smoothedReplayHeadRotation = worldSource.localHeadRotation;
+						smoothedReplaySource = worldSource;
+					} else {
+						smoothedReplayHeadPosition = Vector3.Lerp(smoothedReplayHeadPosition, worldSource.localHeadPosition,
+						cam.timeSinceLastRender * settings.Smoothfollow.position);
+						smoothedReplayHeadRotation = Quaternion.Slerp(smoothedReplayHeadRotation, worldSource.localHeadRotation,
+						cam.timeSinceLastRender * settings.Smoothfollow.rotation);
+					}
+					targetPosition = worldSource.originTransform.TransformPoint(smoothedReplayHeadPosition);
+					targetRotation = worldSource.originTransform.rotation * smoothedReplayHeadRotation;
+				} else {
+					smoothedReplaySource = null;
+					targetPosition = worldSource.worldHeadPosition;
+					targetRotation = worldSource.worldHeadRotation;
+				}
 			} else {
 				targetPosition = currentReplaySource.localHeadPosition;
 				targetRotation = currentReplaySource.localHeadRotation;
@@ -233,7 +259,7 @@ namespace Camera2.Middlewares {
 				lastWorldPoseJumpVersion = -1;
 			}
 
-			// World replay poses already include player-track movement; smoothing them lags behind moving maps.
+			// World replay origins move immediately; recorded head motion is smoothed in origin space above.
 			if(teleportOnNextFrame || currentReplaySource is ReplaySources.WorldSource) {
 				theTransform.position = targetPosition;
 				theTransform.rotation = targetRotation;
