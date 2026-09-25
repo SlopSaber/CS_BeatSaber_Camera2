@@ -1,5 +1,6 @@
 ﻿using Camera2.HarmonyPatches;
 using Camera2.Interfaces;
+using Camera2.SDK;
 using Camera2.Utils;
 using HarmonyLib;
 using System;
@@ -28,6 +29,21 @@ namespace Camera2.Middlewares {
 
 		private Transformer mapMovementTransformer = null;
 		public new bool Pre() {
+			if(settings.type == Configuration.CameraType.FirstPerson && settings.Smoothfollow.followReplayPosition) {
+				foreach(var source in ReplaySources.sources) {
+					if(!source.isInReplay || !(source is ReplaySources.WorldSource))
+						continue;
+
+					// World-space replay pose already includes Noodle's player-track motion.
+					if(mapMovementTransformer != null) {
+						mapMovementTransformer.position = Vector3.zero;
+						mapMovementTransformer.rotation = Quaternion.identity;
+					}
+					noodleOrigin = null;
+					return true;
+				}
+			}
+
 			// We wanna parent FP cams as well so that the noodle translations are applied instantly and dont get smoothed out by SmoothFollow
 			if(
 				enabled &&

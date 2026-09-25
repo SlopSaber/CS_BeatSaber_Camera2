@@ -37,6 +37,19 @@ namespace Camera2.SDK {
 			}
 		}
 
+		// Replay mods with a moving player origin can supply a world pose directly.
+		public class WorldSource : GenericSource {
+			public Vector3 worldHeadPosition { get; private set; }
+			public Quaternion worldHeadRotation { get; private set; } = Quaternion.identity;
+
+			public WorldSource(string name) : base(name) { }
+
+			public void UpdateWorld(Vector3 position, Quaternion rotation) {
+				worldHeadPosition = position;
+				worldHeadRotation = rotation;
+			}
+		}
+
 		public static void Register(ISource source) => sources.Add(source);
 
 		public static void Unregister(ISource source) => sources.Remove(source);

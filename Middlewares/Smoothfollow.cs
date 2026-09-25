@@ -53,6 +53,7 @@ namespace Camera2.Middlewares {
 		Transform parent { get { return settings.Smoothfollow.parent; } set { settings.Smoothfollow.parent = value; } }
 
 		bool teleportOnNextFrame = false;
+		bool worldReplayPoseLogged = false;
 
 		public void OnEnable() {
 			/*
@@ -88,7 +89,7 @@ namespace Camera2.Middlewares {
 
 			if(settings.type == Configuration.CameraType.FirstPerson && settings.Smoothfollow.followReplayPosition) {
 				foreach(var source in ReplaySources.sources) {
-					if(!source.isInReplay)
+					if(!source.isInReplay || (HookFPFCToggle.isInFPFC && !(source is ReplaySources.WorldSource)))
 						continue;
 
 					currentReplaySource = source;
@@ -96,7 +97,7 @@ namespace Camera2.Middlewares {
 				}
 			}
 
-			if(settings.type == Configuration.CameraType.FirstPerson && HookFPFCToggle.isInFPFC) {
+			if(settings.type == Configuration.CameraType.FirstPerson && HookFPFCToggle.isInFPFC && currentReplaySource == null) {
 				parentToUse = HookFPFCToggle.fpfcTransform;
 				currentReplaySource = null;
 				settings.Smoothfollow.useLocalPosition = HookFPFCToggle.isSiraSettingLocalPostionYes;
@@ -147,6 +148,13 @@ namespace Camera2.Middlewares {
 					targetPosition = parentToUse.position;
 					targetRotation = parentToUse.rotation;
 				}
+			} else if(currentReplaySource is ReplaySources.WorldSource worldSource) {
+				if(!worldReplayPoseLogged) {
+					Plugin.Log.Info($"Using world replay pose from {worldSource.name}");
+					worldReplayPoseLogged = true;
+				}
+				targetPosition = worldSource.worldHeadPosition;
+				targetRotation = worldSource.worldHeadRotation;
 			} else {
 				targetPosition = currentReplaySource.localHeadPosition;
 				targetRotation = currentReplaySource.localHeadRotation;
