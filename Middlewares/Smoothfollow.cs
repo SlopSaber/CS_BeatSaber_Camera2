@@ -160,7 +160,8 @@ namespace Camera2.Middlewares {
 				targetRotation = currentReplaySource.localHeadRotation;
 			}
 
-			if(!HookFPFCToggle.isInFPFC) {
+			// World replay poses can carry map roll. Honor the camera's limits in FPFC too.
+			if(!HookFPFCToggle.isInFPFC || currentReplaySource is ReplaySources.WorldSource) {
 				// TODO: This is kinda shit
 				var l = settings.Smoothfollow.limits;
 
