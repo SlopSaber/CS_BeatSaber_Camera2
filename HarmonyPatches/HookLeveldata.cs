@@ -13,6 +13,7 @@ namespace Camera2.HarmonyPatches {
 		public static GameplayModifiers gameplayModifiers;
 		public static bool is360Level = false;
 		public static bool isModdedMap = false;
+		public static bool hasCustomWallVisuals = false;
 		public static bool isWallMap = false;
 
 		[HarmonyTargetMethods]
@@ -40,12 +41,13 @@ namespace Camera2.HarmonyPatches {
 			HookLeveldata.gameplayModifiers = gameplayModifiers;
 
 			isModdedMap = ModMapUtil.IsModdedMap(beatmapKey);
+			hasCustomWallVisuals = ModMapUtil.HasCustomWallVisuals(beatmapKey);
             is360Level = beatmapKey.characteristic == BeatmapCharacteristic.Degree360;
 			isWallMap = ModMapUtil.IsProbablyWallmap(beatmapKey);
 		}
 
 		internal static void Reset() {
-			is360Level = isModdedMap = isWallMap = false;
+			is360Level = isModdedMap = isWallMap = hasCustomWallVisuals = false;
 			beatmapLevel = null;
 		}
 	}

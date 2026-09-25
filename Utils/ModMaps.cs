@@ -1,4 +1,5 @@
 ﻿using IPA.Loader;
+using System;
 using System.Linq;
 
 namespace Camera2.Utils {
@@ -26,6 +27,24 @@ namespace Camera2.Utils {
 
 			return _IsModdedMap(beatmapKey);
 		}
+
+		public static bool HasCustomWallVisuals(BeatmapKey beatmapKey) {
+			if(!hasSongCore)
+				return false;
+
+			try {
+				var difficulty = SongCore.Collections.GetCustomLevelSongDifficultyData(beatmapKey)?
+					.additionalDifficultyData;
+				return HasVisualRequirement(difficulty?._requirements) ||
+					HasVisualRequirement(difficulty?._suggestions);
+			} catch {
+				return false;
+			}
+		}
+
+		static bool HasVisualRequirement(string[] capabilities) => capabilities?.Any(x =>
+			string.Equals(x, "Noodle Extensions", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(x, "Chroma", StringComparison.OrdinalIgnoreCase)) == true;
 
 		// Seperate method so we dont throw if theres no Songcore
 		static bool _IsModdedMap(BeatmapKey beatmapKey) {

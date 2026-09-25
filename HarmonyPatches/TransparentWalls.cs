@@ -5,16 +5,9 @@ using UnityEngine;
 namespace Camera2.HarmonyPatches {
 	[HarmonyPatch(typeof(StretchableObstacle), nameof(StretchableObstacle.SetAllProperties))]
 	static class TransparentWalls {
-		static bool loggedWaterDiagnostic;
-
 		static void Postfix(Transform ____obstacleCore, ParametricBoxFakeGlowController ____obstacleFakeGlow, MaterialPropertyBlockController[] ____materialPropertyBlockControllers) {
-			if(HookLeveldata.beatmapLevel?.levelID == "custom_level_448D219117992026EB23C98DC920CE73A912F289") {
-				if(!loggedWaterDiagnostic) {
-					Plugin.Log.Debug("Water diagnostic: skipped Camera2 obstacle layer override");
-					loggedWaterDiagnostic = true;
-				}
+			if(HookLeveldata.hasCustomWallVisuals)
 				return;
-			}
 
 			if(____obstacleCore != null) {
 				// No-Bloom inner wall texture thingy
