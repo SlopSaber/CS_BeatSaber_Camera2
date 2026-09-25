@@ -233,8 +233,8 @@ namespace Camera2.Middlewares {
 				lastWorldPoseJumpVersion = -1;
 			}
 
-			// If we switched scenes (E.g. left / entered a song) we want to snap to the correct position before smoothing again
-			if(teleportOnNextFrame) {
+			// World replay poses already include player-track movement; smoothing them lags behind moving maps.
+			if(teleportOnNextFrame || currentReplaySource is ReplaySources.WorldSource) {
 				theTransform.position = targetPosition;
 				theTransform.rotation = targetRotation;
 
