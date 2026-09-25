@@ -183,8 +183,8 @@ namespace Camera2.Middlewares {
 				if(!float.IsNegativeInfinity(l.rot_y_min) || !float.IsPositiveInfinity(l.rot_y_max))
 					E.y = ClampAngle(E.y, l.rot_y_min, l.rot_y_max);
 
-				// On modcharts the scene and player track can share roll; keep them aligned in replay.
-				if(!(HookFPFCToggle.isInFPFC && HookLeveldata.isModdedMap && currentReplaySource is ReplaySources.WorldSource) &&
+				// World replay poses include map roll; keep it aligned with the replayed scenery.
+				if(!(currentReplaySource is ReplaySources.WorldSource) &&
 					(!float.IsNegativeInfinity(l.rot_z_min) || !float.IsPositiveInfinity(l.rot_z_max)))
 					E.z = ClampAngle(E.z, l.rot_z_min, l.rot_z_max);
 
