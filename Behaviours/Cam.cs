@@ -69,11 +69,9 @@ namespace Camera2.Behaviours {
 			var h = (int)Math.Round(settings.viewRect.height * Screen.height * settings.renderScale);
 
 			var sizeChanged = renderTexture == null || renderTexture.width != w || renderTexture.height != h || renderTexture.antiAliasing != settings.antiAliasing;
+			var oldRenderTexture = sizeChanged ? renderTexture : null;
 
 			if(sizeChanged) {
-				if(renderTexture != null)
-					renderTexture.Release();
-
 				renderTexture = new RenderTexture(w, h, 24) { //, RenderTextureFormat.ARGB32
 					useMipMap = false,
 					antiAliasing = settings.antiAliasing,
@@ -91,6 +89,11 @@ namespace Camera2.Behaviours {
 
 			if(previewImage != null && (sizeChanged || previewImage.rekt.anchorMin != settings.viewRect.MinAnchor()))
 				previewImage.SetSource(this);
+
+			if(oldRenderTexture != null) {
+				oldRenderTexture.Release();
+				Destroy(oldRenderTexture);
+			}
 		}
 
 		internal void ShowWorldCamIfNecessary() {
@@ -298,6 +301,12 @@ namespace Camera2.Behaviours {
 
 			if(previewImage != null) Destroy(previewImage.gameObject);
 			if(shield != null) Destroy(shield.gameObject);
+			if(renderTexture != null) {
+				if(UCamera != null) UCamera.targetTexture = null;
+				renderTexture.Release();
+				Destroy(renderTexture);
+				renderTexture = null;
+			}
 			Destroy(gameObject);
 		}
 	}

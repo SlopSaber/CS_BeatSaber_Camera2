@@ -55,7 +55,7 @@ namespace Camera2.UI {
 		UnityEngine.RenderTexture renderTexture;
 
 		void OnEnable() {
-			if(image == null)
+			if(image == null || renderTexture != null)
 				return;
 
 			renderTexture = new UnityEngine.RenderTexture(UnityEngine.Screen.width, UnityEngine.Screen.height, 0);
@@ -75,6 +75,7 @@ namespace Camera2.UI {
 
 			if(renderTexture != null) {
 				renderTexture.Release();
+				Destroy(renderTexture);
 				renderTexture = null;
 			}
 		}

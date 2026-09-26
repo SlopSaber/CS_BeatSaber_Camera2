@@ -88,5 +88,10 @@ namespace Camera2.Behaviours {
 		public void OnPointerExit(PointerEventData eventData) {
 			renderer.material = normalMaterial;
 		}
+
+		private void OnDestroy() {
+			if(viewMaterial != null)
+				Destroy(viewMaterial);
+		}
 	}
 }

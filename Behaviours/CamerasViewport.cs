@@ -2,7 +2,6 @@
 using Camera2.Managers;
 using Camera2.Utils;
 using System;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -140,7 +139,9 @@ namespace Camera2.Behaviours {
 
 		CameraDesktopView GetViewAtPoint(Vector2 point, ref CamAction actionAtPoint) {
 			// This should already be sorted in the correct order
-			foreach(var camScreen in GetComponentsInChildren<CameraDesktopView>(false).Reverse()) {
+			var views = GetComponentsInChildren<CameraDesktopView>(false);
+			for(var i = views.Length - 1; i >= 0; i--) {
+				var camScreen = views[i];
 				var d = new Rect(camScreen.rekt.position, camScreen.rekt.rect.size);
 
 				if(d.Contains(point) && (!camScreen.cam.settings.isScreenLocked || UI.SettingsView.cam == camScreen.cam)) {
@@ -209,7 +210,7 @@ namespace Camera2.Behaviours {
 
 			// This doesnt really belong here.....
 			var curRes = new Vector2(Screen.width, Screen.height);
-			if(lastScreenRes != Vector2.zero) {
+			if(lastScreenRes != Vector2.zero && lastScreenRes != curRes) {
 				foreach(var c in CamManager.cams)
 					c.Value.UpdateRenderTextureAndView();
 			}
