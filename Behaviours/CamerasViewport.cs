@@ -2,8 +2,10 @@
 using Camera2.Managers;
 using Camera2.Utils;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR;
 
 namespace Camera2.Behaviours {
 
@@ -83,6 +85,11 @@ namespace Camera2.Behaviours {
 	class CamerasViewport : MonoBehaviour {
 		private static Canvas canvas;
 		private Image transitionCover;
+		private readonly List<XRDisplaySubsystem> xrDisplays = new List<XRDisplaySubsystem>();
+		private XRDisplaySubsystem mirrorDisplay;
+		private int previousMirrorBlitMode;
+		private float nextMirrorDiscovery;
+		private const int noMirrorBlit = (int)XRMirrorViewBlitMode.None;
 
 		public void Awake() {
 			DontDestroyOnLoad(gameObject);
@@ -101,6 +108,42 @@ namespace Camera2.Behaviours {
 			transitionCover.color = Color.black;
 			transitionCover.raycastTarget = false;
 			transitionCover.gameObject.SetActive(false);
+		}
+
+		private void OnEnable() {
+			nextMirrorDiscovery = 0f;
+			UpdateMirrorView();
+		}
+
+		private void OnDisable() => RestoreMirrorView();
+
+		private void OnDestroy() => RestoreMirrorView();
+
+		private void UpdateMirrorView() {
+			if(mirrorDisplay == null || !mirrorDisplay.running) {
+				mirrorDisplay = null;
+				if(Time.unscaledTime < nextMirrorDiscovery)
+					return;
+				nextMirrorDiscovery = Time.unscaledTime + 0.25f;
+				SubsystemManager.GetSubsystems(xrDisplays);
+				foreach(var display in xrDisplays) {
+					if(!display.running)
+						continue;
+					mirrorDisplay = display;
+					previousMirrorBlitMode = display.GetPreferredMirrorBlitMode();
+					Plugin.Log.Info($"Suppressing XR mirror view (previous mode {previousMirrorBlitMode})");
+					break;
+				}
+			}
+
+			if(mirrorDisplay != null && mirrorDisplay.GetPreferredMirrorBlitMode() != noMirrorBlit)
+				mirrorDisplay.SetPreferredMirrorBlitMode(noMirrorBlit);
+		}
+
+		private void RestoreMirrorView() {
+			if(mirrorDisplay != null && mirrorDisplay.running && mirrorDisplay.GetPreferredMirrorBlitMode() == noMirrorBlit)
+				mirrorDisplay.SetPreferredMirrorBlitMode(previousMirrorBlitMode);
+			mirrorDisplay = null;
 		}
 
 		public void SetTransitionCover(bool visible) {
@@ -180,6 +223,7 @@ namespace Camera2.Behaviours {
 
 
 		void Update() {
+			UpdateMirrorView();
 			if(Input.anyKeyDown) { //Some custom scenes to do funny stuff with
 				if(Input.GetKeyDown(KeyCode.F1)) {
 					if(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift)) {
