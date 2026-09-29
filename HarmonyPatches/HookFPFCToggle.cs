@@ -1,4 +1,4 @@
-﻿using Camera2.Managers;
+using Camera2.Managers;
 using HarmonyLib;
 using IPA.Loader;
 using IPA.Utilities;
@@ -24,47 +24,54 @@ namespace Camera2.HarmonyPatches {
 			ScenesManager.ActiveSceneChanged();
 		}
 
-		static void Postfix(MonoBehaviour __instance) {
-			var allowInput = true;
+        static bool usesLifecycle;
+        static MethodInfo enableMethod;
+        static MethodInfo disableMethod;
+        static MethodInfo legacyUpdateMethod;
 
-			if(__instance.transform == fpfcTransform) {
-				if(FIELD_SimpleCameraController_AllowInput != null)
-					allowInput = (bool)FIELD_SimpleCameraController_AllowInput.GetValue(__instance);
+        static void Postfix(MonoBehaviour __instance, MethodBase __originalMethod) {
+            // Camera2 clones the main camera; only the original drives menu input.
+            if(__instance.GetComponentInParent<Camera2.Behaviours.Cam2>() != null)
+                return;
 
-				if(allowInput == toggledIntoFPFC)
-					return;
-			}
+            bool allowInput = usesLifecycle
+                ? __originalMethod == enableMethod
+                : (bool)FIELD_SimpleCameraController_AllowInput.GetValue(__instance);
+            if(!allowInput && __instance.transform != fpfcTransform)
+                return;
+            if(__instance.transform == fpfcTransform && allowInput == toggledIntoFPFC)
+                return;
 
-#if DEBUG
-			Plugin.Log.Info(string.Format("HookSiraFPFCToggle: SimpleCameraController.AllowInput => {0}", allowInput));
-#endif
-			SetFPFCActive(__instance.transform, allowInput);
-		}
+            Plugin.Log.Info($"SiraUtil desktop camera {(allowInput ? "enabled" : "disabled")}: {__instance.name}");
+            SetFPFCActive(__instance.transform, allowInput);
+        }
 
-		static PluginMetadata SiraUtilSimpleCameraController = PluginManager.GetPluginFromId("SiraUtil");
-		//TODO: remove next version
-		public static readonly bool isSiraSettingLocalPostionYes = SiraUtilSimpleCameraController != null && SiraUtilSimpleCameraController.HVersion > new Hive.Versioning.Version("3.0.5");
+        static PluginMetadata SiraUtilSimpleCameraController = PluginManager.GetPluginFromId("SiraUtil");
+        public static readonly bool isSiraSettingLocalPostionYes = SiraUtilSimpleCameraController != null && SiraUtilSimpleCameraController.HVersion > new Hive.Versioning.Version("3.0.5");
 
-		static bool Prepare() => TargetMethod() != null;
+        static bool Prepare() {
+            var type = SiraUtilSimpleCameraController?.Assembly.GetType("SiraUtil.Tools.FPFC.SimpleCameraController");
+            if(type == null)
+                return false;
 
-		static MethodBase TargetMethod() {
-			if(SiraUtilSimpleCameraController == null)
-				return null;
+            const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+            legacyUpdateMethod = type.GetMethod("Update", flags);
+            FIELD_SimpleCameraController_AllowInput = type.GetProperty("AllowInput", flags);
+            enableMethod = type.GetMethod("OnEnable", flags);
+            disableMethod = type.GetMethod("OnDisable", flags);
+            usesLifecycle = type.GetMethod("OnBeforeUpdate", flags) != null && enableMethod != null && disableMethod != null;
+            foundSiraToggle = usesLifecycle || (legacyUpdateMethod != null && FIELD_SimpleCameraController_AllowInput != null);
+            return foundSiraToggle;
+        }
 
-			var x = SiraUtilSimpleCameraController.Assembly.GetType("SiraUtil.Tools.FPFC.SimpleCameraController");
-			if(x == null)
-				return null;
-
-			var y = x?.GetMethod("Update", BindingFlags.NonPublic | BindingFlags.Instance);
-			FIELD_SimpleCameraController_AllowInput = x?.GetProperty("AllowInput");
-
-			foundSiraToggle = y != null && FIELD_SimpleCameraController_AllowInput != null;
-
-			if(!foundSiraToggle)
-				return null;
-
-			return y;
-		}
+        static IEnumerable<MethodBase> TargetMethods() {
+            if(usesLifecycle) {
+                yield return enableMethod;
+                yield return disableMethod;
+            } else {
+                yield return legacyUpdateMethod;
+            }
+        }
 
 		[HarmonyPatch(typeof(FirstPersonFlyingController), nameof(FirstPersonFlyingController.OnEnable))]
 		static class HookBasegameFPFC {

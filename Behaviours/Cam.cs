@@ -1,4 +1,4 @@
-﻿//#define FPSCOUNT
+//#define FPSCOUNT
 
 using Camera2.Configuration;
 using Camera2.HarmonyPatches;
@@ -117,7 +117,7 @@ namespace Camera2.Behaviours {
 		}
 
 		static readonly HashSet<string> CameraBehavioursToDestroy = new HashSet<string>() { 
-			"AudioListener", "LIV", "MainCamera", "MeshCollider", "TrackedPoseDriver", "DepthTextureController"
+			"AudioListener", "LIV", "MainCamera", "MeshCollider", "TrackedPoseDriver", "DepthTextureController", "SimpleCameraController"
 		};
 
 		public void Init(string name, CameraDesktopView presentor = null, bool loadConfig = false, bool rename = false) {

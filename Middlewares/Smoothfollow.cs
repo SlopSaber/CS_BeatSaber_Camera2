@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Camera2.HarmonyPatches;
 using Camera2.Interfaces;
 using Camera2.SDK;
@@ -163,7 +163,13 @@ namespace Camera2.Middlewares {
 				if(parentToUse == null)
 					return false;
 
-				if(settings.Smoothfollow.useLocalPosition) {
+                if(HookFPFCToggle.isInFPFC && settings.type == Configuration.CameraType.FirstPerson && !SceneUtil.isInSong) {
+                    // The pointer uses the controller's world pose, copied from this
+                    // camera by SiraUtil. Express that same pose in our chain's origin
+                    // instead of assuming the camera's parent is the world origin.
+                    targetPosition = Quaternion.Inverse(cam.transform.rotation) * (parentToUse.position - cam.transform.position);
+                    targetRotation = Quaternion.Inverse(cam.transform.rotation) * parentToUse.rotation;
+                } else if(settings.Smoothfollow.useLocalPosition) {
 					targetPosition = parentToUse.localPosition;
 					targetRotation = parentToUse.localRotation;
 
