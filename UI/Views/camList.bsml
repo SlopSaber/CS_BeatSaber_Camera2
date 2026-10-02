@@ -91,7 +91,7 @@
 			<text text='Are you enjoying my stuff and want to support me?' align='Center'/>
 			<horizontal>
 				<primary-button text='Open Website on Desktop' on-click='OpenSponsorsLink'/>
-				<button text='Close' click-event='CloseSponsorModal'/>
+				<button text='Close' click-event='CloseSponsorModal' on-click='CloseSponsorsModal'/>
 			</horizontal>
 			<text text='Current sponsors' align='Center'/>
 			<vertical horizontal-fit='Unconstrained' vertical-fit='Unconstrained' preferred-height='45'>

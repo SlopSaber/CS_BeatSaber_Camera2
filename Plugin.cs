@@ -57,18 +57,15 @@ namespace Camera2 {
 			harmony = new Harmony("Kinsi55.BeatSaber.Cam2");
 			harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-			MovementScriptManager.LoadMovementScripts();
+			CamManager.Preload();
 			//GlobalFPSCap.Init();
 
 			SceneManager.activeSceneChanged += SceneUtil.OnActiveSceneChanged;
 
-			// Marinate the Reflection stuff off-thread so the loading of cameras later is less blocking
-			Task.Run(() => {
-				ModmapExtensions.Reflect();
-				CustomNotesUtil.Reflect();
-				if(ScoresaberUtil.Reflect())
-					SDK.ReplaySources.Register(new ScoresaberUtil.SSReplaySource());
-			});
+			ModmapExtensions.Reflect();
+			CustomNotesUtil.Reflect();
+			if(ScoresaberUtil.Reflect())
+				SDK.ReplaySources.Register(new ScoresaberUtil.SSReplaySource());
 
 			MainMenuAwaiter.MainMenuInitializing += delegate {
 				UI.SpaghettiUI.Init();
@@ -77,6 +74,10 @@ namespace Camera2 {
 
 		[OnExit]
 		public void OnApplicationQuit() {
+			CamManager.StopLoads();
+			ConfigFiles.Stop();
+			VMC.OscClient.StopAll();
+			SceneManager.activeSceneChanged -= SceneUtil.OnActiveSceneChanged;
 			harmony.UnpatchSelf();
 		}
 	}

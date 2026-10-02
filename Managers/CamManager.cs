@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.XR;
 
@@ -18,8 +20,115 @@ namespace Camera2.Managers {
 		internal static CamerasViewport customScreen { get; private set; }
 		public static int baseCullingMask { get; internal set; }
 		public static int clearedBaseCullingMask { get; private set; }
+		static readonly CancellationTokenSource lifetime = new CancellationTokenSource();
+		static readonly TaskCompletionSource<bool> ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+		static Task<ConfigInputs> preloadTask;
+		static CancellationTokenSource loadCancellation;
+		static Task loadingTask;
+		static int loadVersion;
+		internal static Task Ready => ready.Task;
+
+		internal static void Preload() {
+			if(preloadTask == null)
+				preloadTask = ConfigFiles.ReadInputsAsync(ConfigUtil.CamsDir, ConfigUtil.MovementScriptsDir, ConfigUtil.ScenesCfg, lifetime.Token);
+		}
+
+		internal static void BeginInit() {
+			SetupOwner();
+			BeginLoad(false);
+		}
+
+		internal static void BeginReload() => BeginLoad(true);
+
+		internal static void EnsureReady() {
+			if(!ConfigFiles.stopped && !ready.Task.IsCompleted && (loadingTask == null || loadingTask.IsCompleted) && CanCloneMainCamera())
+				BeginLoad(cams.Count > 0);
+		}
+
+		static bool CanCloneMainCamera() => Camera.main != null || GameObject.FindGameObjectsWithTag("MainCamera").Length > 0;
+
+		static void InvalidatePendingLoad() {
+			loadVersion++;
+			loadCancellation?.Cancel();
+		}
+
+		static void BeginLoad(bool reload) {
+			if(ConfigFiles.stopped || customScreen == null) return;
+			loadCancellation?.Cancel();
+			var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+			loadCancellation = cancellation;
+			var version = ++loadVersion;
+			var expected = cams.ToDictionary(x => x.Key, x => x.Value);
+			var snapshots = expected.ToDictionary(x => x.Key, x => x.Value.settings.Snapshot());
+			var scenesSnapshot = ScenesManager.settings.Snapshot();
+			var inputTask = !reload && preloadTask != null ? preloadTask :
+				ConfigFiles.ReadInputsAsync(ConfigUtil.CamsDir, ConfigUtil.MovementScriptsDir, ConfigUtil.ScenesCfg, cancellation.Token);
+			preloadTask = null;
+			loadingTask = LoadAsync(inputTask, reload, version, cancellation, expected, snapshots, scenesSnapshot);
+			ConfigFiles.Retain(loadingTask);
+		}
+
+		static bool IsCurrent(int version, CancellationToken token, Dictionary<string, Cam2> expected, Dictionary<string, string> snapshots, string scenesSnapshot) {
+			if(ConfigFiles.stopped || token.IsCancellationRequested || version != loadVersion || customScreen == null || cams.Count != expected.Count)
+				return false;
+			foreach(var item in expected)
+				if(!cams.TryGetValue(item.Key, out var cam) || cam != item.Value || cam == null || cam.settings.Snapshot() != snapshots[item.Key])
+					return false;
+			return ScenesManager.settings.Snapshot() == scenesSnapshot;
+		}
+
+		static async Task LoadAsync(Task<ConfigInputs> inputTask, bool reload, int version, CancellationTokenSource cancellation,
+			Dictionary<string, Cam2> expected, Dictionary<string, string> snapshots, string scenesSnapshot) {
+			var token = cancellation.Token;
+			try {
+				var inputs = await inputTask.ConfigureAwait(false);
+				token.ThrowIfCancellationRequested();
+				var batch = await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(!IsCurrent(version, token, expected, snapshots, scenesSnapshot)) return null;
+					return MovementScriptManager.Prepare(inputs.movements);
+				}).ConfigureAwait(false);
+				if(batch == null) return;
+				var errors = await ConfigFiles.MigrateAsync(batch.migrations, token).ConfigureAwait(false);
+				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(!IsCurrent(version, token, expected, snapshots, scenesSnapshot) || !CanCloneMainCamera()) return;
+					MovementScriptManager.Apply(batch, errors, reload);
+					LoadCamerasPrepared(inputs.cameras, reload);
+					ScenesManager.settings.LoadPrepared(inputs.scenes);
+					if(reload) ShaderManager.Reload();
+					ready.TrySetResult(true);
+				}).ConfigureAwait(false);
+			} catch(OperationCanceledException) { }
+			catch(Exception ex) {
+				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(ConfigFiles.stopped || token.IsCancellationRequested || version != loadVersion) return;
+					Plugin.Log.Error("Failed to load Camera2 config:");
+					Plugin.Log.Error(ex);
+					if(!CanCloneMainCamera()) return;
+					if(cams.Count == 0) InitCameraPrepared("Main", new ConfigFile { path = ConfigUtil.GetCameraPath("Main") }, false);
+					ready.TrySetResult(true);
+				});
+			} finally {
+				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(loadCancellation == cancellation) loadCancellation = null;
+					cancellation.Dispose();
+				});
+			}
+		}
+
+		internal static void StopLoads() {
+			lifetime.Cancel();
+			ready.TrySetCanceled();
+		}
 
 		public static void Init() {
+			InvalidatePendingLoad();
+			SetupOwner();
+			LoadCameras();
+			ScenesManager.settings.Load();
+			ready.TrySetResult(true);
+		}
+
+		static void SetupOwner() {
 			clearedBaseCullingMask = baseCullingMask != 0 ? baseCullingMask : SceneUtil.GetMainCameraButReally().GetComponent<Camera>().cullingMask;
 
 			foreach(int mask in Enum.GetValues(typeof(VisibilityMasks)))
@@ -28,14 +137,47 @@ namespace Camera2.Managers {
 			//Adding _THIS_IS_NORMAL so that ends up in the stupid warning Unity logs when having a SS overlay w/ active VR
 			customScreen = new GameObject("Cam2_Viewport_THIS_IS_NORMAL").AddComponent<CamerasViewport>();
 
-			LoadCameras();
-
-			ScenesManager.settings.Load();
-
 			new GameObject("Cam2_Positioner", typeof(CamPositioner));
 		}
 
+		static void LoadCamerasPrepared(ConfigFile[] files, bool reload) {
+			var loaded = new HashSet<string>();
+			foreach(var file in files) {
+				var name = Path.GetFileNameWithoutExtension(file.path);
+				try {
+					InitCameraPrepared(name, file, reload);
+					loaded.Add(name);
+				} catch(Exception ex) {
+					Plugin.Log.Error($"Failed to load Camera {Path.GetFileName(file.path)}");
+					Plugin.Log.Error(ex);
+				}
+			}
+			if(reload) foreach(var item in cams.Where(x => !loaded.Contains(x.Key)).ToArray()) {
+				GameObject.Destroy(item.Value);
+				cams.Remove(item.Key);
+			}
+			if(cams.Count == 0) InitCameraPrepared("Main", new ConfigFile { path = ConfigUtil.GetCameraPath("Main") }, false);
+			ApplyCameraValues(viewLayer: true);
+		}
+
+		static Cam2 InitCameraPrepared(string name, ConfigFile file, bool reload) {
+			if(cams.TryGetValue(name, out var cam)) {
+				if(!reload) throw new Exception("Already exists??");
+				cam.settings.ReloadPrepared(file);
+				return cam;
+			}
+			cam = new GameObject($"Cam2_{name}").AddComponent<Cam2>();
+			try { cam.InitPrepared(name, customScreen.AddNewView(), file); }
+			catch {
+				GameObject.DestroyImmediate(cam);
+				throw;
+			}
+			cams[name] = cam;
+			return cam;
+		}
+
 		private static void LoadCameras(bool reload = false) {
+			ConfigFiles.Flush();
 			if(!Directory.Exists(ConfigUtil.CamsDir))
 				Directory.CreateDirectory(ConfigUtil.CamsDir);
 
@@ -67,6 +209,7 @@ namespace Camera2.Managers {
 		}
 
 		public static void Reload() {
+			InvalidatePendingLoad();
 			LoadCameras(true);
 			ScenesManager.settings.Load();
 		}
@@ -136,6 +279,7 @@ namespace Camera2.Managers {
 
 			GameObject.DestroyImmediate(cam);
 
+			ConfigFiles.Flush();
 			if(File.Exists(cfgPath))
 				File.Delete(cfgPath);
 

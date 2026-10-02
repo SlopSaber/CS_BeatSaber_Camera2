@@ -58,7 +58,7 @@ namespace Camera2.Behaviours {
 
 			if(writeToConfig && delta != Vector2.zero) {
 				cam.settings.SetViewRect(oMinClamped.x, oMinClamped.y, oMaxClamped.x - oMinClamped.x, oMaxClamped.y - oMinClamped.y);
-				cam.settings.Save();
+				cam.settings.SaveAsync();
 			}
 		}
 
@@ -184,9 +184,7 @@ namespace Camera2.Behaviours {
 				if(Input.GetKeyDown(KeyCode.F1)) {
 					if(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift)) {
 						Plugin.Log.Info("Reloading Camera2 Config...");
-						MovementScriptManager.LoadMovementScripts(true);
-						CamManager.Reload();
-						ShaderManager.Reload();
+						CamManager.BeginReload();
 					} else {
 						ScenesManager.LoadGameScene();
 					}

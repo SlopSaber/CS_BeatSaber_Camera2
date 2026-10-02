@@ -77,19 +77,28 @@ namespace Camera2.Configuration {
 		}
 
 		public static MovementScript Load(string name) {
+			ConfigFiles.Flush();
 			var scriptPath = ConfigUtil.GetMovementScriptPath(name);
-			if(!File.Exists(scriptPath))
+			var file = ConfigFiles.Read(scriptPath, true, System.Threading.CancellationToken.None);
+			if(!file.exists)
 				return null;
+			var script = LoadPrepared(file);
+			if(file.legacyMovement) {
+				File.Move(scriptPath, $"{scriptPath}.cameraPlusFormat");
+				File.WriteAllText(scriptPath, script.MigrationText());
+			}
+			return script;
+		}
 
+		internal static MovementScript LoadPrepared(ConfigFile file) {
+			if(file.error != null) throw file.error;
 			var script = new MovementScript();
-
-			var scriptContent = File.ReadAllText(scriptPath);
 			// Not a Noodle movement script
-			if(!scriptContent.Contains("Movements")) {
-				JsonConvert.PopulateObject(scriptContent, script, JsonHelpers.leanDeserializeSettings);
+			if(!file.legacyMovement) {
+				file.Populate(script);
 			} else {
 				// Camera Plus movement script, we need to convert it...
-				dynamic camPlusScript = JObject.Parse(scriptContent.ToLowerInvariant());
+				dynamic camPlusScript = file.data;
 
 				script.syncToSong = camPlusScript.activeinpausemenu != "true";
 
@@ -110,10 +119,6 @@ namespace Camera2.Configuration {
 					});
 				}
 
-				File.Move(scriptPath, $"{scriptPath}.cameraPlusFormat");
-				File.WriteAllText(scriptPath, JsonConvert.SerializeObject(script, Formatting.Indented, new JsonSerializerSettings() {
-					DefaultValueHandling = DefaultValueHandling.Ignore
-				}));
 			}
 
 			//if(frames[0].posType == PositionType.Relative) {
@@ -125,5 +130,9 @@ namespace Camera2.Configuration {
 
 			return script;
 		}
+
+		internal string MigrationText() => JsonConvert.SerializeObject(this, Formatting.Indented, new JsonSerializerSettings {
+			DefaultValueHandling = DefaultValueHandling.Ignore
+		});
 	}
 }

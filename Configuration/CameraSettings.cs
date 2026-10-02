@@ -110,20 +110,27 @@ namespace Camera2.Configuration {
 			PostProcessing = CameraSubSettings.GetFor<Settings_PostProcessing>(this);
 		}
 
-		public void Load(bool loadConfig = true) {
+		public void Load(bool loadConfig = true) => LoadCore(loadConfig, null);
+		internal void LoadPrepared(ConfigFile file) => LoadCore(true, file);
+
+		void LoadCore(bool loadConfig, ConfigFile file) {
+			if(file == null) ConfigFiles.Flush();
 			isLoaded = false;
 			// Set default value incase they're not loaded from JSON
 			FOV = 90f;
 
-			if(System.IO.File.Exists(cam.configPath)) {
-				if(loadConfig)
-					JsonConvert.PopulateObject(System.IO.File.ReadAllText(cam.configPath), this, JsonHelpers.leanDeserializeSettings);
+			if(file?.exists ?? System.IO.File.Exists(cam.configPath)) {
+				if(loadConfig) {
+					if(file != null) file.Populate(this);
+					else JsonConvert.PopulateObject(System.IO.File.ReadAllText(cam.configPath), this, JsonHelpers.leanDeserializeSettings);
+				}
 			} else {
 				layer = CamManager.cams.Count == 0 ? 1 : CamManager.cams.Max(x => x.Value.settings.layer) + 1;
 			}
 			// We always save after loading, even if its a fresh load. This will make sure to migrate configs after updates.
 #if !DEV
-			Save();
+			if(file == null) Save();
+			else SaveAsync();
 #endif
 
 			viewRect ??= new ScreenRect(0, 0, 1, 1, false);
@@ -138,18 +145,42 @@ namespace Camera2.Configuration {
 		public void Save() {
 			if(cam == null)
 				return;
-			var x = overrideToken; overrideToken = null;
 			try {
-				System.IO.File.WriteAllText(cam.configPath, JsonConvert.SerializeObject(this, Formatting.Indented));
+				ConfigFiles.Flush();
+				System.IO.File.WriteAllText(cam.configPath, Snapshot());
 			} catch(Exception ex) {
 				Plugin.Log.Error($"Failed to save Config for Camera {cam.name}:");
 				Plugin.Log.Error(ex);
 			}
-			overrideToken = x;
+		}
+
+		internal string Snapshot() {
+			var token = overrideToken;
+			overrideToken = null;
+			try { return JsonConvert.SerializeObject(this, Formatting.Indented); }
+			finally { overrideToken = token; }
+		}
+
+		internal void SaveAsync() {
+			if(cam == null || cam.destroying || ConfigFiles.stopped) return;
+			try {
+				var path = cam.configPath;
+				var text = Snapshot();
+				ConfigFiles.Retain(ConfigFiles.ObserveWriteAsync(ConfigFiles.WriteAsync(path, text), $"Failed to save Config for Camera {cam.name}:"));
+			} catch(Exception ex) { Plugin.Log.Error(ex); }
 		}
 
 		public void Reload() {
 			Load();
+			NotifyReloaded();
+		}
+
+		internal void ReloadPrepared(ConfigFile file) {
+			LoadPrepared(file);
+			NotifyReloaded();
+		}
+
+		void NotifyReloaded() {
 			foreach(var x in cam.middlewares)
 				x.CamConfigReloaded();
 		}

@@ -88,7 +88,7 @@ namespace Camera2.Behaviours {
 
 			grabbedCamera.worldCam.SetPreviewPositionAndSize(true);
 
-			grabbedCamera.settings.Save();
+			grabbedCamera.settings.SaveAsync();
 
 			grabbedCamera = null;
 		}

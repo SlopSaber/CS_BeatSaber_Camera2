@@ -17,8 +17,9 @@ namespace Camera2.HarmonyPatches {
 
 				Plugin.Log.Notice("Game is ready, Initializing...");
 
-				CamManager.Init();
+				CamManager.BeginInit();
 			} else {
+				CamManager.EnsureReady();
 				foreach(var cam in CamManager.cams.Values)
 					cam.UpdateDepthTextureActive();
 			}

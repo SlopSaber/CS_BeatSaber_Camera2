@@ -9,6 +9,7 @@ using BeatSaberMarkupLanguage.ViewControllers;
 using Camera2.Behaviours;
 using Camera2.Configuration;
 using Camera2.Managers;
+using Camera2.Utils;
 using HarmonyLib;
 using HMUI;
 using System;
@@ -20,6 +21,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine.UI;
 
@@ -28,6 +30,7 @@ namespace Camera2.UI {
 
 	class SpaghettiUI {
 		private static Coordinator _flow;
+		private static Task showTask;
 		internal static CustomScenesSwitchUI scenesSwitchUI = new CustomScenesSwitchUI();
 
 		public static void Init() {
@@ -37,9 +40,26 @@ namespace Camera2.UI {
 		}
 
 		private static void ShowFlow() {
-			if(_flow == null)
-				_flow = BeatSaberUI.CreateFlowCoordinator<Coordinator>();
-			BeatSaberUI.MainFlowCoordinator.PresentFlowCoordinator(_flow);
+			if(ConfigFiles.stopped || showTask != null && !showTask.IsCompleted) return;
+			CamManager.EnsureReady();
+			showTask = ShowFlowAsync();
+			ConfigFiles.Retain(showTask);
+		}
+
+		static async Task ShowFlowAsync() {
+			try {
+				await CamManager.Ready.ConfigureAwait(false);
+				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(ConfigFiles.stopped) return;
+					if(_flow == null) _flow = BeatSaberUI.CreateFlowCoordinator<Coordinator>();
+					BeatSaberUI.MainFlowCoordinator.PresentFlowCoordinator(_flow);
+				});
+			} catch(OperationCanceledException) { }
+			catch(Exception ex) {
+				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(!ConfigFiles.stopped) Plugin.Log.Error(ex);
+				});
+			}
 		}
 	}
 
@@ -359,8 +379,8 @@ namespace Camera2.UI {
 
 		internal void SaveSettings() {
 			if(cam != null)
-				cam.settings.Save();
-			ScenesManager.settings.Save();
+				cam.settings.SaveAsync();
+			ScenesManager.settings.SaveAsync();
 		}
 
 		[UIAction("#post-parse")]
@@ -566,22 +586,62 @@ namespace Camera2.UI {
 		void ShowWiki() => Process.Start("https://github.com/kinsi55/CS_BeatSaber_Camera2/wiki");
 
 		[UIComponent("sponsorsText")] CurvedTextMeshPro sponsorsText = null;
+		CancellationTokenSource sponsorsCancellation;
+		Task sponsorsTask;
+		int sponsorsVersion;
 		void OpenSponsorsLink() => Process.Start("https://github.com/sponsors/kinsi55");
 		void OpenSponsorsModal() {
+			CloseSponsorsModal();
+			var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ConfigFiles.LifetimeToken);
+			sponsorsCancellation = cancellation;
+			var version = ++sponsorsVersion;
 			sponsorsText.text = "Loading...";
-			Task.Run(() => {
-				string desc = "Failed to load";
-				try {
-					desc = (new WebClient()).DownloadString("http://kinsi.me/sponsors/bsout.php");
-				} catch { }
+			sponsorsTask = LoadSponsorsAsync("http://kinsi.me/sponsors/bsout.php", version, cancellation);
+			ConfigFiles.Retain(sponsorsTask);
+		}
 
-				_ = IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+		void CloseSponsorsModal() {
+			sponsorsCancellation?.Cancel();
+			sponsorsCancellation = null;
+			sponsorsVersion++;
+		}
+		void OnDisable() => CloseSponsorsModal();
+		void OnDestroy() => CloseSponsorsModal();
+
+		static async Task<string> DownloadSponsorsAsync(string url, CancellationToken token) {
+			token.ThrowIfCancellationRequested();
+			using(var client = new WebClient())
+			using(token.Register(client.CancelAsync)) {
+				try {
+					var text = await client.DownloadStringTaskAsync(url).ConfigureAwait(false);
+					token.ThrowIfCancellationRequested();
+					return text;
+				} catch {
+					token.ThrowIfCancellationRequested();
+					return "Failed to load";
+				}
+			}
+		}
+
+		async Task LoadSponsorsAsync(string url, int version, CancellationTokenSource cancellation) {
+			var token = cancellation.Token;
+			try {
+				var desc = await Task.Run(() => DownloadSponsorsAsync(url, token)).ConfigureAwait(false);
+				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(ConfigFiles.stopped || token.IsCancellationRequested || this == null || !isActiveAndEnabled ||
+						version != sponsorsVersion || sponsorsCancellation != cancellation || sponsorsText == null) return;
 					sponsorsText.text = desc;
 					// There is almost certainly a better way to update / correctly set the scrollbar size...
 					sponsorsText.gameObject.SetActive(false);
 					sponsorsText.gameObject.SetActive(true);
+				}).ConfigureAwait(false);
+			} catch(OperationCanceledException) { }
+			finally {
+				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
+					if(sponsorsCancellation == cancellation) sponsorsCancellation = null;
+					cancellation.Dispose();
 				});
-			}).ConfigureAwait(false);
+			}
 		}
 	}
 

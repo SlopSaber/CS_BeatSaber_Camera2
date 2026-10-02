@@ -32,10 +32,15 @@ namespace Camera2.Configuration {
 		public bool autoswitchFromCustom = false;
 		private bool wasLoaded = false;
 
-		public void Load() {
-			if(File.Exists(ConfigUtil.ScenesCfg)) {
+		public void Load() => LoadCore(null);
+		internal void LoadPrepared(ConfigFile file) => LoadCore(file);
+
+		void LoadCore(ConfigFile file) {
+			if(file == null) ConfigFiles.Flush();
+			if(file?.exists ?? File.Exists(ConfigUtil.ScenesCfg)) {
 				try {
-					JsonConvert.PopulateObject(File.ReadAllText(ConfigUtil.ScenesCfg), this, JsonHelpers.leanDeserializeSettings);
+					if(file != null) file.Populate(this);
+					else JsonConvert.PopulateObject(File.ReadAllText(ConfigUtil.ScenesCfg), this, JsonHelpers.leanDeserializeSettings);
 				} catch(Exception ex) {
 					if(!wasLoaded) {
 						Plugin.Log.Error($"Failed to load Scenes config, it has been reset:");
@@ -46,7 +51,7 @@ namespace Camera2.Configuration {
 
 						File.Move(ConfigUtil.ScenesCfg, $"{ConfigUtil.ScenesCfg}.corrupted");
 					} else {
-						System.Threading.Tasks.Task.Run(() => WinAPI.MessageBox(IntPtr.Zero, "It seems like the Formatting of your Scenes.json is invalid! It was not loaded.\n\nIf you cant figure out how to fix the formatting you can simply delete it which will recreate it on next load", "Camera2", 0x30));
+						ConfigFiles.Retain(System.Threading.Tasks.Task.Run(() => WinAPI.MessageBox(IntPtr.Zero, "It seems like the Formatting of your Scenes.json is invalid! It was not loaded.\n\nIf you cant figure out how to fix the formatting you can simply delete it which will recreate it on next load", "Camera2", 0x30)));
 						return;
 					}
 				}
@@ -59,7 +64,8 @@ namespace Camera2.Configuration {
 
 			wasLoaded = true;
 #if !DEV
-			Save();
+			if(file == null) Save();
+			else SaveAsync();
 #endif
 
 			// AAaaaa I hate this being here. This needs to go to some better place IMO
@@ -69,8 +75,16 @@ namespace Camera2.Configuration {
 		}
 
 		public void Save() {
-			if(wasLoaded)
+			if(wasLoaded) {
+				ConfigFiles.Flush();
 				File.WriteAllText(ConfigUtil.ScenesCfg, JsonConvert.SerializeObject(this, Formatting.Indented));
+			}
+		}
+
+		internal string Snapshot() => JsonConvert.SerializeObject(this, Formatting.Indented);
+		internal void SaveAsync() {
+			if(wasLoaded && !ConfigFiles.stopped)
+				ConfigFiles.Retain(ConfigFiles.ObserveWriteAsync(ConfigFiles.WriteAsync(ConfigUtil.ScenesCfg, Snapshot()), "Failed to save Scenes config:"));
 		}
 	}
 }

@@ -120,7 +120,10 @@ namespace Camera2.Behaviours {
 			"AudioListener", "LIV", "MainCamera", "MeshCollider", "TrackedPoseDriver", "DepthTextureController", "SimpleCameraController"
 		};
 
-		public void Init(string name, CameraDesktopView presentor = null, bool loadConfig = false, bool rename = false) {
+		public void Init(string name, CameraDesktopView presentor = null, bool loadConfig = false, bool rename = false) => InitCore(name, presentor, loadConfig, rename, null);
+		internal void InitPrepared(string name, CameraDesktopView presentor, ConfigFile file) => InitCore(name, presentor, true, false, file);
+
+		void InitCore(string name, CameraDesktopView presentor, bool loadConfig, bool rename, ConfigFile file) {
 			if(this.name != null) {
 				if(rename) {
 					this.name = name;
@@ -183,7 +186,8 @@ namespace Camera2.Behaviours {
 			worldCam.transform.parent = camClone.transform;
 
 			settings = new CameraSettings(this);
-			settings.Load(loadConfig);
+			if(file == null) settings.Load(loadConfig);
+			else settings.LoadPrepared(file);
 
 
 			middlewares = new[] {

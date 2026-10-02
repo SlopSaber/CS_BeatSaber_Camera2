@@ -13,8 +13,16 @@ namespace Camera2.Configuration {
 	}
 
 	class Settings_VMCAvatar : CameraSubSettings {
+		VMCMode _mode = VMCMode.Disabled;
 		[JsonConverter(typeof(StringEnumConverter))]
-		public VMCMode mode = VMCMode.Disabled;
+		public VMCMode mode {
+			get => _mode;
+			set {
+				if(_mode == value) return;
+				_mode = value;
+				settings.cam.GetComponent<Middlewares.VMCAvatar>()?.ResetSender();
+			}
+		}
 
 		public string destination {
 			get => address.ToString();
@@ -29,8 +37,10 @@ namespace Camera2.Configuration {
 					return;
 				}
 
+				var parsedPort = stuff.Length == 2 ? ushort.Parse(stuff[1]) : 39540;
 				address.Address = parsedAddress;
-				address.Port = stuff.Length == 2 ? ushort.Parse(stuff[1]) : 39540;
+				address.Port = parsedPort;
+				settings.cam.GetComponent<Middlewares.VMCAvatar>()?.ResetSender();
 			}
 		}
 
@@ -41,27 +51,49 @@ namespace Camera2.Configuration {
 
 namespace Camera2.Middlewares {
 	class VMCAvatar : CamMiddleware, IMHandler {
-		static OscClient sender;
+		OscClient sender;
+		string senderDestination;
 
-		static float prevFov;
-		static Vector3 prevPos;
-		static Quaternion prevRot;
+		float prevFov;
+		Vector3 prevPos;
+		Quaternion prevRot;
+		bool hasPrevious;
+
+		internal void ResetSender() {
+			sender?.Dispose();
+			sender = null;
+			senderDestination = null;
+			hasPrevious = false;
+		}
+
+		public void OnDisable() => ResetSender();
+		public void OnDestroy() => ResetSender();
+		new public void CamConfigReloaded() => ResetSender();
 
 		new public void Post() {
-			if(cam.settings.VMCProtocol.mode == Configuration.VMCMode.Disabled)
+			if(cam.settings.VMCProtocol.mode == Configuration.VMCMode.Disabled) {
+				ResetSender();
 				return;
+			}
 
-			if(prevFov == cam.settings.FOV && prevPos == cam.transformchain.position && prevRot == cam.transformchain.rotation)
+			var destination = cam.settings.VMCProtocol.address.ToString();
+			if(sender != null && senderDestination != destination) ResetSender();
+			var fov = cam.settings.FOV;
+			var position = cam.transformchain.position;
+			var rotation = cam.transformchain.rotation;
+			if(hasPrevious && prevFov == fov && prevPos == position && prevRot == rotation)
 				return;
 
 			try {
-				sender ??= new OscClient(cam.settings.VMCProtocol.address);
+				sender ??= new OscClient(cam.settings.VMCProtocol.address.Address.GetAddressBytes(), cam.settings.VMCProtocol.address.Port);
+				senderDestination = destination;
 
-				sender.SendCamPos(cam);
+				sender.QueuePose(position.x, position.y, position.z, rotation.x, rotation.y, rotation.z, rotation.w, fov);
 			} catch { } finally {
-				prevFov = cam.settings.FOV;
-				prevPos = cam.transformchain.position;
-				prevRot = cam.transformchain.rotation;
+				prevFov = fov;
+				prevPos = position;
+				prevRot = rotation;
+				hasPrevious = true;
 			}
 		}
 	}
