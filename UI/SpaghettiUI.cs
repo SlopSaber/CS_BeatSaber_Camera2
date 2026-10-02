@@ -626,10 +626,12 @@ namespace Camera2.UI {
 			}
 		}
 
+		static Task<string> StartSponsorsDownloadAsync(string url, CancellationToken token) => Task.Run(() => DownloadSponsorsAsync(url, token));
+
 		async Task LoadSponsorsAsync(string url, int version, CancellationTokenSource cancellation) {
 			var token = cancellation.Token;
 			try {
-				var desc = await Task.Run(() => DownloadSponsorsAsync(url, token)).ConfigureAwait(false);
+				var desc = await StartSponsorsDownloadAsync(url, token).ConfigureAwait(false);
 				await IPA.Utilities.Async.UnityMainThreadTaskScheduler.Factory.StartNew(() => {
 					if(ConfigFiles.stopped || token.IsCancellationRequested || this == null || !isActiveAndEnabled ||
 						version != sponsorsVersion || sponsorsCancellation != cancellation || sponsorsText == null) return;
