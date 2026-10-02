@@ -606,7 +606,10 @@ namespace Camera2.UI {
 			sponsorsVersion++;
 		}
 		void OnDisable() => CloseSponsorsModal();
-		void OnDestroy() => CloseSponsorsModal();
+		protected override void OnDestroy() {
+			CloseSponsorsModal();
+			base.OnDestroy();
+		}
 
 		static async Task<string> DownloadSponsorsAsync(string url, CancellationToken token) {
 			token.ThrowIfCancellationRequested();
