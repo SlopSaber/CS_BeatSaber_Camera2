@@ -180,6 +180,7 @@ namespace Camera2.Behaviours {
 
 
 		void Update() {
+            HookFPFCToggle.Update();
 			if(Input.anyKeyDown) { //Some custom scenes to do funny stuff with
 				if(Input.GetKeyDown(KeyCode.F1)) {
 					if(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftShift)) {

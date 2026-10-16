@@ -134,7 +134,7 @@ namespace Camera2.Middlewares {
 			if(settings.type == Configuration.CameraType.FirstPerson && HookFPFCToggle.isInFPFC && currentReplaySource == null) {
 				parentToUse = HookFPFCToggle.fpfcTransform;
 				currentReplaySource = null;
-				settings.Smoothfollow.useLocalPosition = HookFPFCToggle.isSiraSettingLocalPostionYes;
+
 			}
 
 			Vector3 targetPosition = Vector3.zero;
@@ -163,10 +163,7 @@ namespace Camera2.Middlewares {
 				if(parentToUse == null)
 					return false;
 
-                if(HookFPFCToggle.isInFPFC && settings.type == Configuration.CameraType.FirstPerson && !SceneUtil.isInSong) {
-                    // The pointer uses the controller's world pose, copied from this
-                    // camera by SiraUtil. Express that same pose in our chain's origin
-                    // instead of assuming the camera's parent is the world origin.
+                if(HookFPFCToggle.isInFPFC && settings.type == Configuration.CameraType.FirstPerson) {
                     targetPosition = Quaternion.Inverse(cam.transform.rotation) * (parentToUse.position - cam.transform.position);
                     targetRotation = Quaternion.Inverse(cam.transform.rotation) * parentToUse.rotation;
                 } else if(settings.Smoothfollow.useLocalPosition) {
