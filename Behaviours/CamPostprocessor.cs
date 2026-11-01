@@ -73,18 +73,11 @@ namespace Camera2.Behaviours {
 
 			// Finish the XR camera context before blitting the desktop view. The
 			// luminance shader also makes default views opaque when threshold is zero.
-			var descriptor = cam.renderTexture.descriptor;
-			descriptor.depthBufferBits = 0;
-			descriptor.msaaSamples = 1;
-			descriptor.bindMS = false;
-			var source = RenderTexture.GetTemporary(descriptor);
 			var previousTarget = RenderTexture.active;
 			try {
-				Graphics.Blit(cam.renderTexture, source);
-				OnRenderImage(source, cam.renderTexture);
+				OnRenderImage(cam.renderTexture, cam.renderTexture);
 			} finally {
 				RenderTexture.active = previousTarget;
-				RenderTexture.ReleaseTemporary(source);
 			}
 		}
 
@@ -96,7 +89,13 @@ namespace Camera2.Behaviours {
 				RenderTexture main = _src;
 
 				void Apply(Material mat) {
-					RenderTexture temp = RenderTexture.GetTemporary(main.descriptor);
+					var descriptor = main.descriptor;
+					if(_src == dest) {
+						descriptor.depthBufferBits = 0;
+						descriptor.msaaSamples = 1;
+						descriptor.bindMS = false;
+					}
+					RenderTexture temp = RenderTexture.GetTemporary(descriptor);
 					Graphics.Blit(main, temp, mat);
 					if(main != _src)
 						RenderTexture.ReleaseTemporary(main);
@@ -131,7 +130,7 @@ namespace Camera2.Behaviours {
 				Graphics.Blit(main, dest);
 				if(main != _src)
 					RenderTexture.ReleaseTemporary(main);
-			} else {
+			} else if(_src != dest) {
 				Graphics.Blit(_src, dest);
 			}
 
