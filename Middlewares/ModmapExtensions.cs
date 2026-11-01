@@ -22,6 +22,12 @@ namespace Camera2.Middlewares {
 		//static Type Noodle_PlayerTrack;
 		static Transform g_noodleOrigin = null;
 		Transform noodleOrigin = null;
+		internal static bool? PlayerTrackAvailable;
+
+		internal static void ResetPlayerTrack() {
+			PlayerTrackAvailable = null;
+			g_noodleOrigin = null;
+		}
 
 		public static void Reflect() {
 			//Noodle_PlayerTrack ??= IPA.Loader.PluginManager.GetPluginFromId("NoodleExtensions")?.Assembly.GetType("NoodleExtensions.Animation.PlayerTrack");
@@ -48,9 +54,10 @@ namespace Camera2.Middlewares {
 			if(
 				enabled &&
 				HookLeveldata.isModdedMap &&
+				PlayerTrackAvailable != false &&
 				(settings.ModmapExtensions.moveWithMap || settings.type != Configuration.CameraType.Positionable)
 			) {
-				if(noodleOrigin is null) {
+				if(noodleOrigin == null) {
 					// Unity momento
 					if(g_noodleOrigin == null)
 						g_noodleOrigin = null;

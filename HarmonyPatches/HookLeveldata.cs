@@ -34,6 +34,7 @@ namespace Camera2.HarmonyPatches {
 
 		[HarmonyPostfix]
 		static void Postfix(BeatmapKey beatmapKey, BeatmapLevel beatmapLevel, GameplayModifiers gameplayModifiers) {
+			Middlewares.ModmapExtensions.ResetPlayerTrack();
 #if DEBUG
 			Plugin.Log.Info("Got level data!");
 #endif
@@ -47,6 +48,7 @@ namespace Camera2.HarmonyPatches {
 		}
 
 		internal static void Reset() {
+			Middlewares.ModmapExtensions.ResetPlayerTrack();
 			is360Level = isModdedMap = isWallMap = hasCustomWallVisuals = false;
 			beatmapLevel = null;
 		}
