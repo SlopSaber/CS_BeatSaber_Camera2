@@ -197,6 +197,9 @@ namespace Camera2.Behaviours {
 			};
 
 			camClone.AddComponent<CamPostProcessor>().Init(this);
+#if BEAT_SABER_1453
+			camClone.AddComponent<SaberWallOcclusion>().Init(this);
+#endif
 			camClone.SetActive(true);
 		}
 
