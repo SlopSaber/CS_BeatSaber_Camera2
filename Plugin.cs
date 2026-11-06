@@ -48,10 +48,25 @@ namespace Camera2 {
 			using(var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Camera2.Shaders.camera2utils"))
 				LoadNormalShaders(AssetBundle.LoadFromStream(stream));
 #if BEAT_SABER_1453
-			using(var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Camera2.Shaders.camera2preview")) {
-				var bundle = AssetBundle.LoadFromStream(stream);
-				Shader_VolumetricBlit = bundle.LoadAsset<Shader>("VolumetricBlit.shader");
-				bundle.Unload(false);
+			try {
+				using(var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Camera2.Shaders.camera2preview")) {
+					var bundle = stream == null ? null : AssetBundle.LoadFromStream(stream);
+					if(bundle == null) {
+						Log.Warn("Camera2 preview bundle could not be loaded; retaining the legacy preview shader.");
+						return;
+					}
+					try {
+						var shader = bundle.LoadAsset<Shader>("assets/volumetricblit.shader");
+						if(shader != null && shader.isSupported)
+							Shader_VolumetricBlit = shader;
+						else
+							Log.Warn("Camera2 preview shader is unavailable; retaining the legacy preview shader.");
+					} finally {
+						bundle.Unload(false);
+					}
+				}
+			} catch(System.Exception ex) {
+				Log.Warn($"Camera2 preview shader could not be loaded; retaining the legacy preview shader: {ex}");
 			}
 #endif
 #else
