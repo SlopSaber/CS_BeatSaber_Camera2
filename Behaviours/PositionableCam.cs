@@ -13,16 +13,20 @@ namespace Camera2.Behaviours {
 		private GameObject camPreview;
 		private Material viewMaterial;
 
-		//private static Material hoverMaterial = new Material(Resources.FindObjectsOfTypeAll<Material>().FirstOrDefault(m => m.name == "HandleHologram"));
-		//private static Material normalMaterial = new Material(Resources.FindObjectsOfTypeAll<Material>().FirstOrDefault(m => m.name == "MenuShockwave"));
-		private static Material hoverMaterial;
-		private static Material normalMaterial;
+		private Material hoverMaterial;
+		private Material normalMaterial;
 
 		private MeshRenderer renderer;
 
 		public void Awake() {
-			hoverMaterial ??= new Material(Shader.Find("Hidden/Internal-DepthNormalsTexture"));
-			normalMaterial ??= new Material(Resources.FindObjectsOfTypeAll<Material>().FirstOrDefault(m => m.name == "MenuShockwave"));
+			Shader markerShader = Shader.Find("Custom/Glowing") ??
+				Resources.FindObjectsOfTypeAll<Shader>().FirstOrDefault(shader => shader.name == "Custom/Glowing");
+			if(markerShader == null || !markerShader.isSupported)
+				markerShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+			if(markerShader == null)
+				throw new InvalidOperationException("Camera2 could not find a supported camera marker shader.");
+			normalMaterial = CreateMarkerMaterial(markerShader, new Color(1f, 1f, 1f, 0.7f));
+			hoverMaterial = CreateMarkerMaterial(markerShader, new Color(0.5f, 1f, 1f, 1f));
 
 			DontDestroyOnLoad(gameObject);
 
@@ -34,8 +38,9 @@ namespace Camera2.Behaviours {
 			camOrigin.transform.localEulerAngles = new Vector3(90f, 0, 0);
 
 			renderer = camOrigin.GetComponent<MeshRenderer>();
-			normalMaterial.color = new Color(255, 255, 175, 0.7f);
-			renderer.material = normalMaterial;
+			renderer.sharedMaterial = normalMaterial;
+			renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+			renderer.receiveShadows = false;
 
 			camPreview = GameObject.CreatePrimitive(PrimitiveType.Quad);
 			Destroy(camPreview.GetComponent<Collider>());
@@ -43,6 +48,13 @@ namespace Camera2.Behaviours {
 
 			viewMaterial = new Material(Plugin.Shader_VolumetricBlit);
 			camPreview.GetComponent<MeshRenderer>().material = viewMaterial;
+		}
+
+		private static Material CreateMarkerMaterial(Shader shader, Color color) {
+			var material = new Material(shader);
+			if(material.HasProperty("_Color")) material.SetColor("_Color", color);
+			if(material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
+			return material;
 		}
 
 		public void SetSource(Cam2 cam) {
@@ -82,14 +94,18 @@ namespace Camera2.Behaviours {
 		}
 
 		public void OnPointerEnter(PointerEventData eventData) {
-			renderer.material = hoverMaterial;
+			renderer.sharedMaterial = hoverMaterial;
 		}
 
 		public void OnPointerExit(PointerEventData eventData) {
-			renderer.material = normalMaterial;
+			renderer.sharedMaterial = normalMaterial;
 		}
 
 		private void OnDestroy() {
+			if(normalMaterial != null)
+				Destroy(normalMaterial);
+			if(hoverMaterial != null)
+				Destroy(hoverMaterial);
 			if(viewMaterial != null)
 				Destroy(viewMaterial);
 		}
