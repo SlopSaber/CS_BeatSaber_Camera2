@@ -1,6 +1,12 @@
 ﻿using System;
 
 namespace Camera2.Utils {
+	static class WallTextureLayers {
+		internal static readonly int ScreenDisplacement = UnityEngine.LayerMask.NameToLayer("ScreenDisplacement");
+		internal static readonly VisibilityMasks Mask = VisibilityMasks.WallTextures |
+			(ScreenDisplacement >= 0 ? (VisibilityMasks)(1 << ScreenDisplacement) : 0);
+	}
+
 	enum VisibilityLayers : int {
 		ThirdPerson = 3,
 		Floor = 4, // Called "Water" ingame

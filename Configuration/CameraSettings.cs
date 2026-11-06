@@ -166,7 +166,7 @@ namespace Camera2.Configuration {
 			VisibilityMasks maskBuilder = visibleObjects.EverythingElse ? (VisibilityMasks)CamManager.clearedBaseCullingMask : 0;
 
 			if(visibleObjects.Walls == WallVisiblity.Visible || (ModmapExtensions.autoOpaqueWalls && HookLeveldata.isWallMap)) {
-				maskBuilder |= VisibilityMasks.Walls | VisibilityMasks.WallTextures;
+				maskBuilder |= VisibilityMasks.Walls | WallTextureLayers.Mask;
 			} else if(visibleObjects.Walls == WallVisiblity.Transparent) {
 				maskBuilder |= VisibilityMasks.Walls;
 			}

@@ -16,13 +16,19 @@ namespace Camera2.HarmonyPatches {
 
 					// This is PROBABLY not perfect, we'll have to see if this breaks at some point
 					if(____materialPropertyBlockControllers.Length > 1)
-						____materialPropertyBlockControllers[1].gameObject.layer = (int)VisibilityLayers.WallTextures;
+						SetTextureLayer(____materialPropertyBlockControllers[1].gameObject);
 				}
 
-				____obstacleCore.gameObject.layer = (int)VisibilityLayers.WallTextures;
+				SetTextureLayer(____obstacleCore.gameObject);
 			}
 
 			//____obstacleFakeGlow.enabled = false;
+		}
+
+		static void SetTextureLayer(GameObject target) {
+			// HD cores must draw in the displacement pass after its screen capture.
+			if(target.layer != WallTextureLayers.ScreenDisplacement)
+				target.layer = (int)VisibilityLayers.WallTextures;
 		}
 
 		public static void MakeWallsOpaqueForMainCam() {
@@ -31,7 +37,7 @@ namespace Camera2.HarmonyPatches {
 #if DEBUG
 				Plugin.Log.Info("Made walls opaque for main cam!");
 #endif
-				a.cullingMask |= (int)VisibilityMasks.WallTextures;
+				a.cullingMask |= (int)WallTextureLayers.Mask;
 			}
 		}
 	}
