@@ -1,23 +1,17 @@
 ﻿<vertical xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='https://monkeymanboy.github.io/BSML-Docs/ https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'>
 	<toggle-setting text='Scene profiles' value='profilesEnabled' apply-on-change='true' hover-hint='Keep separate sets of cameras and scenes in UserData/Camera2/Profiles'/>
 	<dropdown-list-setting id='profileDropdown' text='Profile' value='activeProfile' choices='profiles' apply-on-change='true' hover-hint='Folders in UserData/Camera2/Profiles. Default uses UserData/Camera2.'/>
-	<horizontal>
-		<vertical pad-right="3">
-			<custom-list id='customScenesList' select-cell='SwitchToCustomScene' contents='scenes'>
-				<vertical id='bgContainer' bg='round-rect-panel' pad='1' horizontal-fit='Unconstrained'>
-					<horizontal>
-						<text text='~name' align='MidlineLeft' font-size='3'/>
-						<text text='~camCount' align='TopRight' font-size='2.5'/>
-					</horizontal>
-					<horizontal>
-						<text text='~camNames' align='MidlineLeft' font-size='2.3' font-color='#BBB' word-wrapping='true'/>
-					</horizontal>
-				</vertical>
-			</custom-list>
-		</vertical>
-		<vertical preferred-width='4'>
-			<page-button event-click='customScenesList#PageUp' direction='Up' pref-height='3' pref-width='4'/>
-			<page-button event-click='customScenesList#PageDown' direction='Down' pref-height='3' pref-width='4'/>
-		</vertical>
-	</horizontal>
+	<vertical pad-top='2'>
+		<custom-list id='customScenesList' select-cell='SwitchToCustomScene' contents='scenes' list-width='90' visible-cells='5' show-scrollbar='true'>
+			<vertical id='bgContainer' bg='round-rect-panel' pad='1' horizontal-fit='Unconstrained'>
+				<horizontal>
+					<text text='~name' align='MidlineLeft' font-size='3'/>
+					<text text='~camCount' align='TopRight' font-size='2.5'/>
+				</horizontal>
+				<horizontal>
+					<text text='~camNames' align='MidlineLeft' font-size='2.3' font-color='#BBB' word-wrapping='true'/>
+				</horizontal>
+			</vertical>
+		</custom-list>
+	</vertical>
 </vertical>
