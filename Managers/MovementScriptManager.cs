@@ -16,6 +16,9 @@ namespace Camera2.Managers {
 		public static void LoadMovementScripts(bool reload = false) {
 			if(!Directory.Exists(ConfigUtil.MovementScriptsDir)) {
 				Directory.CreateDirectory(ConfigUtil.MovementScriptsDir);
+
+				if(reload)
+					movementScripts.Clear();
 			} else {
 				var loadedNames = new List<string>();
 
@@ -43,7 +46,7 @@ namespace Camera2.Managers {
 						Plugin.Log.Error(ex);
 					}
 				}
-				if(reload) foreach(var deletedScript in movementScripts.Where(x => !loadedNames.Contains(x.Key))) {
+				if(reload) foreach(var deletedScript in movementScripts.Where(x => !loadedNames.Contains(x.Key)).ToList()) {
 						movementScripts.Remove(deletedScript.Key);
 					}
 			}

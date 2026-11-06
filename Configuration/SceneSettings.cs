@@ -32,6 +32,13 @@ namespace Camera2.Configuration {
 		public bool autoswitchFromCustom = false;
 		private bool wasLoaded = false;
 
+		public void Clear() {
+			scenes.Clear();
+			customScenes.Clear();
+			customSceneBindings.Clear();
+			autoswitchFromCustom = false;
+		}
+
 		public void Load() {
 			if(File.Exists(ConfigUtil.ScenesCfg)) {
 				try {

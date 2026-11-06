@@ -54,7 +54,7 @@ namespace Camera2.Managers {
 					Plugin.Log.Error(ex);
 				}
 			}
-			if(reload) foreach(var deletedCam in cams.Where(x => !loadedNames.Contains(x.Key))) {
+			if(reload) foreach(var deletedCam in cams.Where(x => !loadedNames.Contains(x.Key)).ToList()) {
 				GameObject.Destroy(deletedCam.Value);
 				cams.Remove(deletedCam.Key);
 			}
@@ -69,6 +69,20 @@ namespace Camera2.Managers {
 		public static void Reload() {
 			LoadCameras(true);
 			ScenesManager.settings.Load();
+		}
+
+		internal static void ReloadProfile() {
+			if(customScreen == null)
+				return;
+
+			foreach(var cam in cams.Values.ToList())
+				GameObject.DestroyImmediate(cam);
+
+			cams.Clear();
+			LoadCameras();
+			ScenesManager.settings.Clear();
+			ScenesManager.settings.Load();
+			UI.SpaghettiUI.scenesSwitchUI.Update(0);
 		}
 
 		/* 

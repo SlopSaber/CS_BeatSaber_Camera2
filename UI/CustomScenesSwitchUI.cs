@@ -1,5 +1,6 @@
 ﻿using BeatSaberMarkupLanguage.Attributes;
 using BeatSaberMarkupLanguage.Components;
+using BeatSaberMarkupLanguage.Components.Settings;
 using Camera2.Managers;
 using HMUI;
 using System.Collections.Generic;
@@ -50,6 +51,39 @@ namespace Camera2.UI {
 
 	class CustomScenesSwitchUI {
 		[UIComponent("customScenesList")] public CustomCellListTableData list = null;
+		[UIComponent("profileDropdown")] DropDownListSetting profileDropdown = null;
+
+		[UIValue("profiles")] List<object> profiles = ProfileManager.GetProfiles().Cast<object>().ToList();
+
+		[UIValue("profilesEnabled")]
+		bool profilesEnabled {
+			get => ProfileManager.enabled;
+			set {
+				ProfileManager.SetEnabled(value);
+				RefreshProfiles();
+			}
+		}
+
+		[UIValue("activeProfile")]
+		string activeProfile {
+			get => ProfileManager.activeProfile;
+			set => ProfileManager.SwitchTo(value);
+		}
+
+		[UIAction("#post-parse")]
+		void Parsed() => RefreshProfiles();
+
+		void RefreshProfiles() {
+			if(profileDropdown == null)
+				return;
+
+			profiles.Clear();
+			profiles.AddRange(ProfileManager.GetProfiles());
+			profileDropdown.Values = profiles;
+			profileDropdown.UpdateChoices();
+			profileDropdown.Value = ProfileManager.activeProfile;
+			profileDropdown.gameObject.SetActive(ProfileManager.enabled);
+		}
 		[UIValue("scenes")] List<object> scenes =>
 			ScenesManager.settings.customScenes.Keys.Select(x => new CustomSceneUIEntry(x))
 				.Prepend(new CustomSceneUIEntry(null))
@@ -70,6 +104,7 @@ namespace Camera2.UI {
 				return;
 
 			if(reloadData) {
+				RefreshProfiles();
 				list.Data = scenes;
 				list.TableView.ReloadData();
 			}

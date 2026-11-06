@@ -1,4 +1,6 @@
 ﻿<vertical xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='https://monkeymanboy.github.io/BSML-Docs/ https://raw.githubusercontent.com/monkeymanboy/BSML-Docs/gh-pages/BSMLSchema.xsd'>
+	<toggle-setting text='Scene profiles' value='profilesEnabled' apply-on-change='true' hover-hint='Keep separate sets of cameras and scenes in UserData/Camera2/Profiles'/>
+	<dropdown-list-setting id='profileDropdown' text='Profile' value='activeProfile' choices='profiles' apply-on-change='true' hover-hint='Folders in UserData/Camera2/Profiles. Default uses UserData/Camera2.'/>
 	<horizontal>
 		<vertical pad-right="3">
 			<custom-list id='customScenesList' select-cell='SwitchToCustomScene' contents='scenes'>
