@@ -47,6 +47,13 @@ namespace Camera2 {
 #if !DEV
 			using(var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Camera2.Shaders.camera2utils"))
 				LoadNormalShaders(AssetBundle.LoadFromStream(stream));
+#if BEAT_SABER_1453
+			using(var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Camera2.Shaders.camera2preview")) {
+				var bundle = AssetBundle.LoadFromStream(stream);
+				Shader_VolumetricBlit = bundle.LoadAsset<Shader>("VolumetricBlit.shader");
+				bundle.Unload(false);
+			}
+#endif
 #else
 			LoadNormalShaders(AssetBundle.LoadFromFile(@"D:\Unity Shit\Projects\AssetBundlePacker\Assets\StreamingAssets\camera2utils"));
 #endif

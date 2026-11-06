@@ -47,7 +47,10 @@ namespace Camera2.Behaviours {
 			camPreview.transform.parent = transform;
 
 			viewMaterial = new Material(Plugin.Shader_VolumetricBlit);
-			camPreview.GetComponent<MeshRenderer>().material = viewMaterial;
+			var previewRenderer = camPreview.GetComponent<MeshRenderer>();
+			previewRenderer.sharedMaterial = viewMaterial;
+			previewRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+			previewRenderer.receiveShadows = false;
 		}
 
 		private static Material CreateMarkerMaterial(Shader shader, Color color) {
@@ -68,9 +71,9 @@ namespace Camera2.Behaviours {
 			var size = small ? cam.settings.previewScreenSize : Math.Min(cam.settings.previewScreenSize * 2f, 4);
 
 			if(cam.UCamera.aspect > 1f) {
-				camPreview.transform.localScale = new Vector3(size, size / cam.UCamera.aspect, 0);
+				camPreview.transform.localScale = new Vector3(size, size / cam.UCamera.aspect, 1);
 			} else {
-				camPreview.transform.localScale = new Vector3(size * cam.UCamera.aspect, size, 0);
+				camPreview.transform.localScale = new Vector3(size * cam.UCamera.aspect, size, 1);
 			}
 
 			if(cam.settings.worldCamUnderScreen) {
